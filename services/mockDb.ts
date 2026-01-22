@@ -35,20 +35,20 @@ const setStored = (key: string, data: any) => {
 };
 
 class MockDatabase {
-  categorias: Categoria[] = getStored('logicheck_cat', INITIAL_CATEGORIAS);
-  marcas: Marca[] = getStored('logicheck_marcas', INITIAL_MARCAS);
-  proveedores: Proveedor[] = getStored('logicheck_prov', INITIAL_PROVEEDORES);
-  productos: Producto[] = getStored('logicheck_prod', INITIAL_PRODUCTOS);
-  pedidos: Pedido[] = getStored('logicheck_pedidos', []);
-  pedidoItems: PedidoItem[] = getStored('logicheck_pitems', []);
+  categorias: Categoria[] = getStored('fluxo_cat', INITIAL_CATEGORIAS);
+  marcas: Marca[] = getStored('fluxo_marcas', INITIAL_MARCAS);
+  proveedores: Proveedor[] = getStored('fluxo_prov', INITIAL_PROVEEDORES);
+  productos: Producto[] = getStored('fluxo_prod', INITIAL_PRODUCTOS);
+  pedidos: Pedido[] = getStored('fluxo_pedidos', []);
+  pedidoItems: PedidoItem[] = getStored('fluxo_pitems', []);
 
   save() {
-    setStored('logicheck_cat', this.categorias);
-    setStored('logicheck_marcas', this.marcas);
-    setStored('logicheck_prov', this.proveedores);
-    setStored('logicheck_prod', this.productos);
-    setStored('logicheck_pedidos', this.pedidos);
-    setStored('logicheck_pitems', this.pedidoItems);
+    setStored('fluxo_cat', this.categorias);
+    setStored('fluxo_marcas', this.marcas);
+    setStored('fluxo_prov', this.proveedores);
+    setStored('fluxo_prod', this.productos);
+    setStored('fluxo_pedidos', this.pedidos);
+    setStored('fluxo_pitems', this.pedidoItems);
   }
 
   reset() {
@@ -66,10 +66,10 @@ class MockDatabase {
   }
 
   addCategoria(name: string, parent_id?: string) {
-    const newCat = { 
-      id: 'c' + Math.random().toString(36).substr(2, 9), 
-      name, 
-      parent_id 
+    const newCat = {
+      id: 'c' + Math.random().toString(36).substr(2, 9),
+      name,
+      parent_id
     };
     this.categorias.push(newCat);
     this.save();
@@ -90,9 +90,9 @@ class MockDatabase {
   }
 
   addMarca(nombre: string) {
-    const newMarca = { 
-      id: 'm' + Math.random().toString(36).substr(2, 9), 
-      nombre 
+    const newMarca = {
+      id: 'm' + Math.random().toString(36).substr(2, 9),
+      nombre
     };
     this.marcas.push(newMarca);
     this.save();

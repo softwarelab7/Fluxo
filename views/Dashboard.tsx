@@ -1,11 +1,11 @@
 
 import React from 'react';
 import GlassCard from '../components/GlassCard';
-import { 
-  AlertTriangle, 
-  TrendingUp, 
-  Clock, 
-  Box, 
+import {
+  AlertTriangle,
+  TrendingUp,
+  Clock,
+  Box,
   ArrowUpRight,
   ChevronRight
 } from 'lucide-react';
@@ -41,7 +41,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const pendingOrders = db.pedidos.filter(p => p.estado === 'Pendiente').length;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-fade-in-up">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold">Resumen Operativo</h2>
@@ -49,7 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
         <div className="flex space-x-2">
           <button className="px-4 py-2 glass rounded-xl text-sm font-medium glass-hover">Reporte Semanal</button>
-          <button 
+          <button
             onClick={() => onNavigate('orders')}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-medium transition-all shadow-lg shadow-indigo-600/20"
           >
@@ -60,30 +60,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       {/* Bento Grid Indicators */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Stock Crítico" 
-          value={criticalStock.length} 
-          icon={AlertTriangle} 
-          color="bg-rose-500" 
+        <StatCard
+          title="Stock Crítico"
+          value={criticalStock.length}
+          icon={AlertTriangle}
+          color="bg-rose-500"
           trend="+2 vs ayer"
         />
-        <StatCard 
-          title="Pedidos en Curso" 
-          value={pendingOrders} 
-          icon={Clock} 
-          color="bg-amber-500" 
+        <StatCard
+          title="Pedidos en Curso"
+          value={pendingOrders}
+          icon={Clock}
+          color="bg-amber-500"
         />
-        <StatCard 
-          title="Total Referencias" 
-          value={products.length} 
-          icon={Box} 
-          color="bg-indigo-500" 
+        <StatCard
+          title="Total Referencias"
+          value={products.length}
+          icon={Box}
+          color="bg-indigo-500"
         />
-        <StatCard 
-          title="Faltantes de Semana" 
-          value="14" 
-          icon={TrendingUp} 
-          color="bg-violet-500" 
+        <StatCard
+          title="Faltantes de Semana"
+          value="14"
+          icon={TrendingUp}
+          color="bg-violet-500"
           trend="+5%"
         />
       </div>
@@ -94,7 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <GlassCard className="h-full">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">Productos en Alerta</h3>
-              <button 
+              <button
                 onClick={() => onNavigate('inventory')}
                 className="text-indigo-400 text-sm font-medium hover:underline"
               >
@@ -104,35 +104,35 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="text-left text-slate-500 text-xs uppercase tracking-wider">
-                    <th className="pb-4">Producto</th>
+                  <tr className="text-left text-slate-400 text-xs uppercase tracking-wider border-b border-white/10">
+                    <th className="pb-4 pl-2">Producto</th>
                     <th className="pb-4 text-center">Stock</th>
                     <th className="pb-4 text-center">Mínimo</th>
                     <th className="pb-4">Estado</th>
-                    <th className="pb-4 text-right">Acción</th>
+                    <th className="pb-4 text-right pr-2">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {criticalStock.map(p => (
-                    <tr key={p.id} className="group hover:bg-white/5 transition-colors">
-                      <td className="py-4">
+                    <tr key={p.id} className="group hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 relative">
+                      <td className="py-4 pl-2">
                         <div className="flex items-center space-x-3">
-                          <img src={p.imagen_url} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                          <img src={p.imagen_url} className="w-10 h-10 rounded-lg object-cover ring-2 ring-transparent group-hover:ring-indigo-500/50 transition-all" alt="" />
                           <div>
-                            <p className="font-medium text-slate-200">{p.nombre}</p>
-                            <p className="text-xs text-slate-500">{p.sku}</p>
+                            <p className="font-medium text-slate-200 group-hover:text-white transition-colors">{p.nombre}</p>
+                            <p className="text-xs text-slate-500 group-hover:text-indigo-400 transition-colors">{p.sku}</p>
                           </div>
                         </div>
                       </td>
                       <td className="py-4 font-semibold text-rose-400 text-center">{p.stock_actual}</td>
                       <td className="py-4 text-slate-400 text-center">{p.stock_minimo}</td>
                       <td className="py-4">
-                        <span className="px-2 py-1 rounded-full bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase whitespace-nowrap">Stock Bajo</span>
+                        <span className="px-2 py-1 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold uppercase whitespace-nowrap shadow-[0_0_10px_rgba(244,63,94,0.1)]">Stock Bajo</span>
                       </td>
-                      <td className="py-4 text-right">
-                        <button 
+                      <td className="py-4 text-right pr-2">
+                        <button
                           onClick={() => onNavigate('orders')}
-                          className="p-2 hover:bg-white/10 rounded-lg text-slate-400 group-hover:text-white transition-all"
+                          className="p-2 hover:bg-indigo-500 hover:text-white rounded-lg text-slate-400 transition-all shadow-none hover:shadow-lg hover:shadow-indigo-500/20"
                         >
                           <ChevronRight size={18} />
                         </button>

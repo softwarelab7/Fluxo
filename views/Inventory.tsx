@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import GlassCard from '../components/GlassCard';
-import { 
-  Search, 
-  Plus, 
-  Download, 
-  Filter, 
+import {
+  Search,
+  Plus,
+  Download,
+  Filter,
   MoreVertical,
   Edit2,
   Trash2,
@@ -44,7 +44,7 @@ const Inventory = () => {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-    XLSX.writeFile(wb, "Inventario_LogiCheck.xlsx");
+    XLSX.writeFile(wb, "Inventario_Fluxo.xlsx");
   };
 
   const handleDelete = (id: string) => {
@@ -71,14 +71,14 @@ const Inventory = () => {
     });
   };
 
-  const filtered = products.filter(p => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filtered = products.filter(p =>
+    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.marca?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold">Catálogo Maestro</h2>
@@ -98,9 +98,9 @@ const Inventory = () => {
         <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar por referencia, nombre o marca..." 
+            <input
+              type="text"
+              placeholder="Buscar por referencia, nombre o marca..."
               className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -118,13 +118,13 @@ const Inventory = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-slate-500 uppercase tracking-widest text-[10px] font-bold">
-                <th className="px-6 py-4">Producto</th>
+              <tr className="text-left text-slate-400 uppercase tracking-wider text-[11px] font-bold border-b border-white/5 bg-white/[0.02]">
+                <th className="px-6 py-4 first:rounded-tl-xl">Producto</th>
                 <th className="px-6 py-4">Categoría</th>
                 <th className="px-6 py-4 text-center">Stock</th>
                 <th className="px-6 py-4 text-center">Mínimo</th>
                 <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
+                <th className="px-6 py-4 text-right last:rounded-tr-xl">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -134,10 +134,17 @@ const Inventory = () => {
                   <tr key={p.id} className="group hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
-                        <img src={p.imagen_url} className="w-12 h-12 rounded-xl object-cover" alt="" />
+                        <div className="relative group/img">
+                          <img src={p.imagen_url} className="w-10 h-10 rounded-lg object-cover transition-transform group-hover/img:scale-110" alt="" />
+                          <div className="absolute inset-0 rounded-lg ring-1 ring-white/10 group-hover/img:ring-indigo-500/30 transition-all"></div>
+                        </div>
                         <div>
-                          <p className="font-bold text-slate-200">{p.nombre}</p>
-                          <p className="text-xs text-slate-500">{p.sku} • {p.marca?.nombre}</p>
+                          <p className="font-bold text-slate-200 group-hover:text-indigo-300 transition-colors">{p.nombre}</p>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-slate-500">{p.sku}</span>
+                            <span className="text-slate-700">•</span>
+                            <span className="text-xs text-slate-500">{p.marca?.nombre}</span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -199,23 +206,23 @@ const Inventory = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-400">Referencia (SKU)</label>
-                  <input required type="text" value={newProduct.sku} onChange={e => setNewProduct({...newProduct, sku: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500" />
+                  <input required type="text" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-400">Nombre</label>
-                  <input required type="text" value={newProduct.nombre} onChange={e => setNewProduct({...newProduct, nombre: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500" />
+                  <input required type="text" value={newProduct.nombre} onChange={e => setNewProduct({ ...newProduct, nombre: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-400">Marca</label>
-                  <select value={newProduct.marca_id} onChange={e => setNewProduct({...newProduct, marca_id: e.target.value})} className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-sm">
+                  <select value={newProduct.marca_id} onChange={e => setNewProduct({ ...newProduct, marca_id: e.target.value })} className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-sm">
                     {db.marcas.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-400">Categoría</label>
-                  <select value={newProduct.subcategoria_id} onChange={e => setNewProduct({...newProduct, subcategoria_id: e.target.value})} className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-sm">
+                  <select value={newProduct.subcategoria_id} onChange={e => setNewProduct({ ...newProduct, subcategoria_id: e.target.value })} className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-sm">
                     {db.categorias.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
@@ -223,15 +230,15 @@ const Inventory = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-400">Stock Inicial</label>
-                  <input type="number" value={newProduct.stock_actual} onChange={e => setNewProduct({...newProduct, stock_actual: parseInt(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
+                  <input type="number" value={newProduct.stock_actual} onChange={e => setNewProduct({ ...newProduct, stock_actual: parseInt(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-400">Stock Mínimo</label>
-                  <input type="number" value={newProduct.stock_minimo} onChange={e => setNewProduct({...newProduct, stock_minimo: parseInt(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
+                  <input type="number" value={newProduct.stock_minimo} onChange={e => setNewProduct({ ...newProduct, stock_minimo: parseInt(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="flex items-center space-x-2 pt-2">
-                <input type="checkbox" id="rotation" checked={newProduct.is_high_rotation} onChange={e => setNewProduct({...newProduct, is_high_rotation: e.target.checked})} className="accent-indigo-500" />
+                <input type="checkbox" id="rotation" checked={newProduct.is_high_rotation} onChange={e => setNewProduct({ ...newProduct, is_high_rotation: e.target.checked })} className="accent-indigo-500" />
                 <label htmlFor="rotation" className="text-sm font-medium text-slate-300">Marcar como Alta Rotación</label>
               </div>
               <button type="submit" className="w-full py-3 mt-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all">

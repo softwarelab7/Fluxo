@@ -1,17 +1,17 @@
 
 import React, { useState } from 'react';
 import GlassCard from '../components/GlassCard';
-import { 
-  Database, 
-  Shield, 
-  RefreshCw, 
-  Layers, 
-  Bookmark, 
-  Edit2, 
-  Check, 
-  X, 
-  Plus, 
-  Trash2 
+import {
+  Database,
+  Shield,
+  RefreshCw,
+  Layers,
+  Bookmark,
+  Edit2,
+  Check,
+  X,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { db } from '../services/mockDb';
 
@@ -24,13 +24,13 @@ interface EditableItemProps {
   type?: 'category' | 'brand' | 'subcategory';
 }
 
-const EditableItem: React.FC<EditableItemProps> = ({ 
-  initialValue, 
-  onSave, 
-  onDelete, 
+const EditableItem: React.FC<EditableItemProps> = ({
+  initialValue,
+  onSave,
+  onDelete,
   onAddSub,
-  className = "", 
-  type = 'category' 
+  className = "",
+  type = 'category'
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
@@ -90,7 +90,7 @@ const EditableItem: React.FC<EditableItemProps> = ({
           </span>
           <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all">
             {onAddSub && (
-              <button 
+              <button
                 onClick={onAddSub}
                 title="Añadir Subcategoría"
                 className="p-1.5 hover:bg-white/10 text-emerald-400 rounded-lg"
@@ -98,13 +98,13 @@ const EditableItem: React.FC<EditableItemProps> = ({
                 <Plus size={14} />
               </button>
             )}
-            <button 
-              onClick={() => setIsEditing(true)} 
+            <button
+              onClick={() => setIsEditing(true)}
               className="p-1.5 hover:bg-white/10 text-indigo-400 rounded-lg"
             >
               <Edit2 size={14} />
             </button>
-            <button 
+            <button
               onClick={onDelete}
               className="p-1.5 hover:bg-rose-500/10 text-rose-400 rounded-lg"
             >
@@ -178,7 +178,7 @@ const Settings = () => {
               </div>
               <h3 className="font-bold text-lg">Estructura de Categorías</h3>
             </div>
-            <button 
+            <button
               onClick={() => handleAddCategory()}
               className="p-2 bg-white/5 hover:bg-white/10 text-indigo-400 rounded-xl transition-all border border-white/10"
               title="Nueva Categoría Principal"
@@ -186,15 +186,15 @@ const Settings = () => {
               <Plus size={18} />
             </button>
           </div>
-          
+
           <div className="space-y-3">
             {db.categorias.filter(c => !c.parent_id).length === 0 && (
               <p className="text-center text-slate-500 text-sm py-10">No hay categorías. Crea una arriba.</p>
             )}
             {db.categorias.filter(c => !c.parent_id).map(cat => (
               <div key={cat.id} className="p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
-                <EditableItem 
-                  initialValue={cat.name} 
+                <EditableItem
+                  initialValue={cat.name}
                   onSave={(newName) => handleUpdateCategory(cat.id, newName)}
                   onDelete={() => handleDeleteCategory(cat.id)}
                   onAddSub={() => handleAddCategory(cat.id)}
@@ -202,9 +202,9 @@ const Settings = () => {
                 />
                 <div className="pl-4 mt-3 space-y-2 border-l border-white/10">
                   {db.categorias.filter(sub => sub.parent_id === cat.id).map(sub => (
-                    <EditableItem 
+                    <EditableItem
                       key={sub.id}
-                      initialValue={sub.name} 
+                      initialValue={sub.name}
                       onSave={(newName) => handleUpdateCategory(sub.id, newName)}
                       onDelete={() => handleDeleteCategory(sub.id)}
                       type="subcategory"
@@ -229,7 +229,7 @@ const Settings = () => {
               </div>
               <h3 className="font-bold text-lg">Catálogo de Marcas</h3>
             </div>
-            <button 
+            <button
               onClick={handleAddBrand}
               className="p-2 bg-white/5 hover:bg-white/10 text-violet-400 rounded-xl transition-all border border-white/10"
               title="Nueva Marca"
@@ -243,9 +243,9 @@ const Settings = () => {
               <p className="text-slate-500 text-sm py-4">No hay marcas registradas.</p>
             )}
             {db.marcas.map(m => (
-              <EditableItem 
-                key={m.id} 
-                initialValue={m.nombre} 
+              <EditableItem
+                key={m.id}
+                initialValue={m.nombre}
                 onSave={(newName) => handleUpdateMarca(m.id, newName)}
                 onDelete={() => handleDeleteMarca(m.id)}
                 type="brand"
@@ -294,7 +294,7 @@ const Settings = () => {
                 <p className="text-sm text-slate-500">Elimina toda la información local y restaura los valores iniciales.</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => confirm('¿Resetear toda la base de datos? Se perderán todos los cambios personalizados.') && db.reset()}
               className="px-6 py-3 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/30 rounded-2xl text-sm font-bold transition-all shadow-lg hover:shadow-rose-500/20"
             >
@@ -305,7 +305,7 @@ const Settings = () => {
       </div>
 
       <div className="pt-10 pb-6 text-center text-slate-600 text-[10px] uppercase tracking-widest font-bold">
-        LogiCheck Premium Inventory Management • v1.4.0
+        Fluxo Premium Inventory Management • v1.4.0
       </div>
     </div>
   );
