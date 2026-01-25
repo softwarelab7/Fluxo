@@ -20,9 +20,9 @@ const INITIAL_PROVEEDORES: Proveedor[] = [
 ];
 
 const INITIAL_PRODUCTOS: Producto[] = [
-  { id: 'pr1', sku: 'BOS-OIL-001', nombre: 'Filtro Aceite Premium', marca_id: 'm3', subcategoria_id: 'c3', preferred_supplier_id: 'p1', stock_actual: 12, stock_minimo: 15, is_high_rotation: true, imagen_url: 'https://picsum.photos/seed/oil/200/200' },
-  { id: 'pr2', sku: 'BRE-BRK-99', nombre: 'Pastillas Freno Cerámica', marca_id: 'm1', subcategoria_id: 'c4', preferred_supplier_id: 'p2', stock_actual: 4, stock_minimo: 8, is_high_rotation: false, imagen_url: 'https://picsum.photos/seed/break/200/200' },
-  { id: 'pr3', sku: 'CAS-OIL-X', nombre: 'Aceite 5W30 Sintético', marca_id: 'm2', subcategoria_id: 'c3', preferred_supplier_id: 'p1', stock_actual: 45, stock_minimo: 20, is_high_rotation: true, imagen_url: 'https://picsum.photos/seed/castrol/200/200' },
+  { id: 'pr1', sku: 'BOS-OIL-001', nombre: 'Filtro Aceite Premium', marca_id: 'm3', subcategoria_id: 'c3', preferred_supplier_id: 'p1', stock_actual: 12, stock_minimo: 15, is_high_rotation: true },
+  { id: 'pr2', sku: 'BRE-BRK-99', nombre: 'Pastillas Freno Cerámica', marca_id: 'm1', subcategoria_id: 'c4', preferred_supplier_id: 'p2', stock_actual: 4, stock_minimo: 8, is_high_rotation: false },
+  { id: 'pr3', sku: 'CAS-OIL-X', nombre: 'Aceite 5W30 Sintético', marca_id: 'm2', subcategoria_id: 'c3', preferred_supplier_id: 'p1', stock_actual: 45, stock_minimo: 20, is_high_rotation: true },
 ];
 
 const getStored = <T,>(key: string, initial: T): T => {

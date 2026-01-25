@@ -28,7 +28,7 @@ export interface Producto {
   marca_id: string;
   subcategoria_id: string;
   preferred_supplier_id?: string; // New field for provider filtering
-  imagen_url?: string;
+
   stock_actual: number;
   stock_minimo: number;
   is_high_rotation: boolean;

@@ -33,6 +33,7 @@ CREATE TABLE productos (
   nombre TEXT NOT NULL,
   marca_id UUID REFERENCES marcas(id),
   subcategoria_id UUID REFERENCES categorias(id),
+  preferred_supplier_id UUID REFERENCES proveedores(id), -- Campo nuevo para estrategia de pedidos
   imagen_url TEXT,
   stock_actual INTEGER DEFAULT 0,
   stock_minimo INTEGER DEFAULT 5,

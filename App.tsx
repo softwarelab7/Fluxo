@@ -7,6 +7,7 @@ import Orders from './views/Orders';
 import Audit from './views/Audit';
 import Suppliers from './views/Suppliers';
 import Settings from './views/Settings';
+import { ToastProvider } from './components/Toast';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('dashboard');
@@ -18,7 +19,9 @@ const App: React.FC = () => {
       case 'inventory':
         return <Inventory />;
       case 'orders':
-        return <Orders />;
+        return <Orders initialViewMode="CREATE" />;
+      case 'pending-orders':
+        return <Orders initialViewMode="LIST" />;
       case 'audit':
         return <Audit />;
       case 'suppliers':
@@ -31,9 +34,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout activeView={activeView} setActiveView={setActiveView}>
-      {renderView()}
-    </Layout>
+    <ToastProvider>
+      <Layout activeView={activeView} setActiveView={setActiveView}>
+        {renderView()}
+      </Layout>
+    </ToastProvider>
   );
 };
 
