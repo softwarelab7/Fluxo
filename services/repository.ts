@@ -161,6 +161,15 @@ export const repository = {
         if (error) throw error;
     },
 
+    async setStock(id: string, newQuantity: number) {
+        const { error } = await supabase
+            .from('productos')
+            .update({ stock_actual: newQuantity })
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
     // --- PEDIDOS (Existencias y Pendientes) ---
     async createPedido(pedido: Omit<Pedido, 'id' | 'fecha_creacion'>) {
         const { data, error } = await supabase

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 
 interface Option {
@@ -52,9 +52,9 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                 type="button"
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
-                className={`w-full flex items-center justify-between bg-slate-50 dark:bg-white/5 border rounded-lg px-3 py-1.5 text-xs text-left transition-all
-          ${disabled ? 'opacity-50 cursor-not-allowed border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500' : 'hover:bg-slate-100 dark:hover:bg-white/10 hover:border-indigo-500/50 cursor-pointer border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200'}
-          ${isOpen ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}
+                className={`w-full flex items-center justify-between bg-slate-100 dark:bg-[#1e1e2e] border-0 rounded-xl px-4 py-2 text-sm text-left transition-all duration-200
+          ${disabled ? 'opacity-50 cursor-not-allowed text-slate-400' : 'hover:bg-slate-200 dark:hover:bg-[#27273a] cursor-pointer text-slate-700 dark:text-slate-200 shadow-sm hover:shadow-md'}
+          ${isOpen ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : ''}
         `}
             >
                 <span className={`block truncate ${!selectedOption ? 'text-slate-500' : ''}`}>
@@ -64,7 +64,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             </button>
 
             {isOpen && !disabled && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-[#334155] rounded-lg shadow-xl max-h-60 overflow-auto animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute z-50 w-full mt-2 bg-white dark:bg-[#1e1e2e] border-0 rounded-2xl shadow-xl max-h-60 overflow-auto animate-in fade-in zoom-in-95 duration-150">
                     <div className="p-1 space-y-0.5">
                         {options.length === 0 ? (
                             <div className="px-3 py-2 text-xs text-slate-500 text-center italic">
@@ -78,8 +78,8 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                                     onClick={() => handleSelect(option.value)}
                                     className={`w-full flex items-center justify-between px-3 py-1.5 text-xs rounded-md transition-colors
                     ${option.value === value
-                                            ? 'bg-indigo-600 text-white font-medium'
-                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-indigo-600 dark:hover:text-white'
+                                            ? 'bg-blue-600 text-white font-medium'
+                                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-blue-600 dark:hover:text-white'
                                         }
                   `}
                                 >
@@ -96,3 +96,4 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
 };
 
 export default CustomSelect;
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import GlassCard from '../components/GlassCard';
 import {
   Shield,
@@ -56,7 +56,7 @@ const EditableItem: React.FC<EditableItemProps> = ({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           onKeyDownCapture={(e) => e.key === 'Escape' && handleCancel()}
-          className="input-premium rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-slate-700 dark:text-white"
+          className="input-premium rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-full text-slate-700 dark:text-white"
         />
         <button onClick={handleSave} className="p-1.5 hover:bg-emerald-500/20 text-emerald-400 rounded-lg">
           <Check size={14} />
@@ -74,7 +74,7 @@ const EditableItem: React.FC<EditableItemProps> = ({
         <span className="px-3 py-1 bg-slate-100 dark:bg-[#1e293b] rounded-full text-xs border border-slate-200 dark:border-[#334155] flex items-center space-x-2 text-slate-700 dark:text-slate-200">
           <span>{value}</span>
           <div className="flex items-center space-x-1 ml-1">
-            <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:text-indigo-400">
+            <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:text-blue-400">
               <Edit2 size={10} />
             </button>
             <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:text-rose-400">
@@ -99,7 +99,7 @@ const EditableItem: React.FC<EditableItemProps> = ({
             )}
             <button
               onClick={() => setIsEditing(true)}
-              className="p-1.5 hover:bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 rounded-lg"
+              className="p-1.5 hover:bg-blue-500/10 text-blue-500 dark:text-blue-400 rounded-lg"
             >
               <Edit2 size={14} />
             </button>
@@ -226,7 +226,7 @@ const Settings = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen space-y-4">
-        <Loader2 className="animate-spin text-indigo-500" size={48} />
+        <Loader2 className="animate-spin text-blue-500" size={48} />
         <p className="text-slate-400 animate-pulse">Cargando configuración...</p>
       </div>
     );
@@ -245,14 +245,14 @@ const Settings = () => {
           <GlassCard className="space-y-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-indigo-500/20 rounded-lg">
-                  <Layers className="text-indigo-400" size={20} />
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <Layers className="text-blue-400" size={20} />
                 </div>
                 <h3 className="font-bold text-lg">Estructura de Categorías</h3>
               </div>
               <button
                 onClick={() => handleOpenAddCategory()}
-                className="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all shadow-lg shadow-indigo-600/20"
+                className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all shadow-lg shadow-blue-600/20"
                 title="Nueva Categoría Principal"
               >
                 <Plus size={18} />
@@ -264,7 +264,7 @@ const Settings = () => {
                 <p className="text-center text-slate-500 text-sm py-10">No hay categorías. Crea una arriba.</p>
               )}
               {categorias.filter(c => !c.parent_id).map(cat => (
-                <div key={cat.id} className="p-4 bg-white dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-[#334155] hover:border-indigo-500/30 transition-all">
+                <div key={cat.id} className="p-4 bg-white dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-[#334155] hover:border-blue-500/30 transition-all">
                   <EditableItem
                     initialValue={cat.name}
                     onSave={(newName) => handleUpdateCategory(cat.id, newName)}
@@ -335,8 +335,8 @@ const Settings = () => {
               <h3 className="font-bold text-lg text-slate-800 dark:text-white">Estadísticas de Base de Datos</h3>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="flex items-center p-4 bg-slate-100 dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-[#334155] group hover:border-indigo-500/30 transition-all">
-                <div className="mr-3 p-3 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 rounded-xl text-indigo-500 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+              <div className="flex items-center p-4 bg-slate-100 dark:bg-[#1e293b] rounded-2xl border border-slate-200 dark:border-[#334155] group hover:border-blue-500/30 transition-all">
+                <div className="mr-3 p-3 bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 rounded-xl text-blue-500 dark:text-blue-400 group-hover:scale-110 transition-transform">
                   <Layers size={20} />
                 </div>
                 <div>
@@ -407,12 +407,12 @@ const Settings = () => {
                   placeholder="Nombre..."
                   value={newValue}
                   onChange={e => setNewValue(e.target.value)}
-                  className="w-full input-premium rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
+                  className="w-full input-premium rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all"
                 />
               </div>
               <button
                 type="submit"
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all"
               >
                 Crear
               </button>
@@ -425,3 +425,4 @@ const Settings = () => {
 };
 
 export default Settings;
+

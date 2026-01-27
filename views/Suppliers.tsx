@@ -77,7 +77,7 @@ const Suppliers = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <Loader2 className="animate-spin text-indigo-500" size={48} />
+        <Loader2 className="animate-spin text-blue-500" size={48} />
         <p className="text-slate-400 animate-pulse">Cargando proveedores...</p>
       </div>
     );
@@ -93,7 +93,7 @@ const Suppliers = () => {
           </div>
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white text-sm font-bold transition-all shadow-lg shadow-blue-600/20 flex items-center"
           >
             <Plus size={18} className="mr-2" /> Agregar Proveedor
           </button>
@@ -104,7 +104,7 @@ const Suppliers = () => {
           <input
             type="text"
             placeholder="Buscar proveedor..."
-            className="w-full pl-10 pr-4 py-2.5 input-premium rounded-xl focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2.5 input-premium rounded-full focus:ring-1 focus:ring-blue-500 focus:outline-none"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -117,9 +117,9 @@ const Suppliers = () => {
             </div>
           ) : (
             filtered.map(s => (
-              <GlassCard key={s.id} className="relative group hover:border-indigo-500/30 transition-all flex items-center py-6 px-6 bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] shadow-sm hover:shadow-md">
+              <GlassCard key={s.id} className="relative group hover:border-blue-500/30 transition-all flex items-center py-6 px-6 bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] shadow-sm hover:shadow-md">
                 <div className="flex items-center space-x-4 flex-1">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 shrink-0 border border-slate-100 dark:border-white/5">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/10 dark:from-blue-500/20 dark:to-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400 shrink-0 border border-slate-100 dark:border-white/5">
                     <Truck size={24} />
                   </div>
                   <div>
@@ -131,7 +131,7 @@ const Suppliers = () => {
                 <div className="absolute right-4 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleOpenEdit(s)}
-                    className="p-2 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all rounded-lg"
+                    className="p-2 text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all rounded-lg"
                     title="Editar Proveedor"
                   >
                     <Edit2 size={16} />
@@ -169,13 +169,13 @@ const Suppliers = () => {
                     placeholder="Ej. Distribuidora Central"
                     value={formData.nombre}
                     onChange={e => setFormData({ ...formData, nombre: e.target.value })}
-                    className="w-full input-premium rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
+                    className="w-full input-premium rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all mt-4"
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all mt-4"
                 >
                   {editingSupplier ? 'Actualizar' : 'Guardar'}
                 </button>

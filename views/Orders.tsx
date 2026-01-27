@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import GlassCard from '../components/GlassCard';
 import {
   Search,
@@ -230,7 +230,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         });
 
         // Delta for items
-        const existingItemMap = new Map(originalOrderItems.map(i => [i.producto_id, i]));
+        const existingItemMap = new Map<string, PedidoItem>(originalOrderItems.map(i => [i.producto_id, i]));
         const currentItemIds = new Set(cartItems.map(i => i.product.id));
 
         // 1. Updates & Inserts
@@ -337,13 +337,13 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen space-y-4">
-        <Loader2 className="animate-spin text-indigo-500" size={48} />
+        <Loader2 className="animate-spin text-blue-500" size={48} />
         <p className="text-slate-400 animate-pulse">Cargando gestión de pedidos...</p>
       </div>
     );
   }
 
-  // --- LIST VIEW ---
+  // - LIST VIEW -
   if (viewMode === 'LIST') {
     return (
       <div className="space-y-6 animate-in fade-in duration-500 pb-10">
@@ -356,7 +356,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                       or keep it to allow jumping modes. Let's allowing jumping for flexibility. */}
           <button
             onClick={() => setViewMode('CREATE')}
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 flex items-center space-x-2 transition-all active:scale-95"
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg shadow-blue-500/30 flex items-center space-x-2 transition-all active:scale-95"
           >
             <Plus size={20} />
             <span>Nuevo Pedido</span>
@@ -365,7 +365,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
         <div className="grid grid-cols-1 gap-4">
           {pendingOrders.map(order => (
-            <GlassCard key={order.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 group hover:border-indigo-500/30 transition-all">
+            <GlassCard key={order.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 group hover:border-blue-500/30 transition-all">
               <div className="flex items-center space-x-4 mb-4 md:mb-0">
                 <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
                   <Truck className="text-orange-500" size={24} />
@@ -381,7 +381,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
               <div className="flex items-center space-x-6">
                 <div className="text-right">
                   <p className="text-[10px] uppercase font-black text-slate-500 tracking-wider">Items</p>
-                  <p className="text-xl font-bold text-indigo-400">{order.total_items}</p>
+                  <p className="text-xl font-bold text-blue-400">{order.total_items}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] uppercase font-black text-slate-500 tracking-wider">Estado</p>
@@ -395,7 +395,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => loadOrderForEditing(order)}
-                    className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                    className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                     title="Editar Pedido"
                   >
                     <Edit size={20} />
@@ -459,7 +459,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     );
   }
 
-  // --- CREATE / EDIT VIEW ---
+  // - CREATE / EDIT VIEW -
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500 pb-10">
       <div className="lg:col-span-8 space-y-6">
@@ -482,16 +482,16 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           </div>
 
           {!editingOrder && (
-            <div className="flex bg-slate-100 dark:bg-black/20 p-1 rounded-xl border border-slate-200 dark:border-white/5">
+            <div className="flex bg-slate-100 dark:bg-black/20 p-1 rounded-full border border-slate-200 dark:border-white/5">
               <button
                 onClick={() => setOrderMode('PROVIDER')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${orderMode === 'PROVIDER' ? 'bg-white dark:bg-indigo-500 text-indigo-600 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-0' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${orderMode === 'PROVIDER' ? 'bg-white dark:bg-blue-500 text-blue-600 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-0' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
               >
                 Por Proveedor
               </button>
               <button
                 onClick={() => setOrderMode('CATEGORY')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${orderMode === 'CATEGORY' ? 'bg-white dark:bg-violet-500 text-violet-600 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-0' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${orderMode === 'CATEGORY' ? 'bg-white dark:bg-violet-500 text-violet-600 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-0' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
               >
                 Por Categoría
               </button>
@@ -505,10 +505,10 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             <div className="card-premium rounded-2xl p-4 border border-[#334155] space-y-3 animate-in fade-in slide-in-from-left-4 duration-300">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Truck size={14} className="text-indigo-400" />
+                  <Truck size={14} className="text-blue-400" />
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Seleccionar Proveedor</span>
                 </div>
-                <span className="text-[10px] text-indigo-400 font-bold bg-indigo-400/10 px-2 py-0.5 rounded-full uppercase">
+                <span className="text-[10px] text-blue-400 font-bold bg-blue-400/10 px-2 py-0.5 rounded-full uppercase">
                   {selectedProvFilter ? proveedores.find(p => p.id === selectedProvFilter)?.nombre : 'Ninguno'}
                 </span>
               </div>
@@ -518,7 +518,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                     key={p.id}
                     onClick={() => setSelectedProvFilter(p.id)}
                     disabled={!!editingOrder && editingOrder.proveedor_id !== p.id} // Lock provider during edit if desired, or allow change carefully
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border shadow-lg ${selectedProvFilter === p.id ? 'bg-indigo-600/90 text-white border-indigo-400/50 shadow-indigo-600/30 scale-105' : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#334155] hover:border-slate-300 dark:hover:border-slate-500'} ${editingOrder && editingOrder.proveedor_id !== p.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border shadow-lg ${selectedProvFilter === p.id ? 'bg-blue-600/90 text-white border-blue-400/50 shadow-blue-600/30 scale-105' : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#334155] hover:border-slate-300 dark:hover:border-slate-500'} ${editingOrder && editingOrder.proveedor_id !== p.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {p.nombre.split(' ')[0]}
                   </button>
@@ -555,11 +555,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
         {/* Search */}
         <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={20} />
           <input
             type="text"
             placeholder="Escribe SKU o nombre para buscar..."
-            className="w-full pl-12 pr-4 py-4 input-premium rounded-2xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 focus:outline-none transition-all placeholder:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#334155] shadow-inner"
+            className="w-full pl-12 pr-4 py-4 input-premium rounded-full focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:outline-none transition-all placeholder:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#334155] shadow-inner"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -569,18 +569,18 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.length > 0 ? (
             filtered.map(p => (
-              <GlassCard key={p.id} noPadding className="hover:border-indigo-500/30 transition-all group">
+              <GlassCard key={p.id} noPadding className="hover:border-blue-500/30 transition-all group">
                 <div className="p-4 flex items-center space-x-4">
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                      <Package size={32} className="text-indigo-400" />
+                    <div className="w-16 h-16 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                      <Package size={32} className="text-blue-400" />
                     </div>
                     {p.is_high_rotation && <div className="absolute -top-1 -left-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-slate-900 shadow-lg"></div>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
                       <h4 className="font-bold text-slate-700 dark:text-slate-200 truncate text-sm mb-0.5">{p.nombre}</h4>
-                      <span className="text-[8px] font-black bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0 ml-2">
+                      <span className="text-[8px] font-black bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0 ml-2">
                         {p.marca?.nombre}
                       </span>
                     </div>
@@ -591,7 +591,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                       </span>
                       <button
                         onClick={() => addToCart(p.id)}
-                        className="p-2 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl transition-all shadow-[0_0_10px_rgba(79,70,229,0)] hover:shadow-[0_0_15px_rgba(79,70,229,0.4)] active:scale-95 border border-indigo-600/20 hover:border-transparent"
+                        className="p-2 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-xl transition-all shadow-[0_0_10px_rgba(79,70,229,0)] hover:shadow-[0_0_15px_rgba(79,70,229,0.4)] active:scale-95 border border-blue-600/20 hover:border-transparent"
                       >
                         <Plus size={18} />
                       </button>
@@ -615,8 +615,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           <GlassCard className="border border-slate-200 dark:border-[#334155] shadow-2xl flex flex-col min-h-[500px]">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-indigo-500/20 rounded-xl">
-                  <ShoppingCart className="text-indigo-400" size={24} />
+                <div className="p-2 bg-blue-500/20 rounded-xl">
+                  <ShoppingCart className="text-blue-400" size={24} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">
                   {editingOrder ? 'Editando' : 'Nuevo Pedido'}
@@ -624,7 +624,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Refs</p>
-                <p className="text-xl font-bold text-indigo-400">{cartItems.length}</p>
+                <p className="text-xl font-bold text-blue-400">{cartItems.length}</p>
               </div>
             </div>
 
@@ -656,7 +656,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center bg-slate-100 dark:bg-black/30 rounded-lg px-1.5 py-0.5 border border-slate-200 dark:border-white/5">
                       <button onClick={() => updateCartQty(product.id, qty - 1)} className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white">-</button>
-                      <span className="w-6 text-center text-xs font-bold text-indigo-400">{qty}</span>
+                      <span className="w-6 text-center text-xs font-bold text-blue-400">{qty}</span>
                       <button onClick={() => updateCartQty(product.id, qty + 1)} className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white">+</button>
                     </div>
                     <button onClick={() => removeFromCart(product.id)} className="text-rose-500/30 hover:text-rose-500">
@@ -676,7 +676,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             <button
               onClick={handleSaveOrder}
               disabled={cartItems.length === 0}
-              className={`w-full py-4 rounded-2xl flex items-center justify-center space-x-3 font-bold transition-all shadow-lg group border ${cartItems.length === 0
+              className={`w-full py-3 rounded-full flex items-center justify-center space-x-3 font-bold transition-all shadow-lg group border ${cartItems.length === 0
                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border-slate-200 dark:border-white/5'
                 : 'bg-emerald-600 hover:bg-emerald-500 text-white border-transparent shadow-emerald-600/30 active:scale-[0.98]'
                 }`}
@@ -721,3 +721,4 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 };
 
 export default Orders;
+

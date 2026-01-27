@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
@@ -26,13 +25,13 @@ interface SidebarItemProps {
 const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 group ${active
-      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-600/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20'
-      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200'
+    className={`w-full flex items-center space-x-3 px-4 py-2 rounded-full transition-all duration-200 group ${active
+      ? 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 font-bold shadow-sm'
+      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#27273a] hover:text-slate-900 dark:hover:text-slate-200'
       }`}
   >
-    <Icon size={20} />
-    <span className="font-medium">{label}</span>
+    <Icon size={18} />
+    <span className="font-medium text-sm">{label}</span>
   </button>
 );
 
@@ -83,7 +82,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView }) 
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f8fafc] dark:bg-gradient-to-br dark:from-[#0f172a] dark:to-[#020617] transition-colors duration-300">
+    <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-[#020617] transition-colors duration-300">
       {/* Mobile Toggle */}
       <button
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-[#334155] rounded-lg text-slate-700 dark:text-slate-200 shadow-md"
@@ -94,23 +93,23 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView }) 
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 
-        bg-white dark:bg-[#0f172a]/80 dark:backdrop-blur-xl 
-        border-r border-slate-200 dark:border-[#334155]/50 
+        fixed inset-y-0 left-0 z-40 w-56 
+        bg-white dark:bg-[#0f172a] 
+        border-r border-slate-200 dark:border-[#1e293b] 
         transition-all duration-300 transform
         lg:translate-x-0 lg:static
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         shadow-2xl lg:shadow-none
       `}>
-        <div className="p-6">
-          <div className="flex items-center space-x-3 mb-10 px-2">
-            <Logo className="w-10 h-10" />
-            <h1 className="text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-300 dark:to-violet-300">
+        <div className="p-4">
+          <div className="flex items-center space-x-3 mb-6 px-2">
+            <Logo className="w-8 h-8" />
+            <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-violet-600 dark:from-blue-300 dark:to-violet-300">
               Fluxo
             </h1>
           </div>
 
-          <nav className="space-y-2">
+          <nav className="space-y-1">
             {menuItems.map((item) => (
               <SidebarItem
                 key={item.id}
@@ -126,13 +125,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView }) 
           </nav>
         </div>
 
-        <div className="absolute bottom-6 left-6 right-6 space-y-2">
+        <div className="absolute bottom-4 left-4 right-4 space-y-1">
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200"
+            className="w-full flex items-center space-x-3 px-4 py-2 rounded-full transition-all duration-200 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#27273a] hover:text-slate-900 dark:hover:text-slate-200"
           >
-            {isDark ? <Sun size={20} /> : <Moon size={20} />}
-            <span className="font-medium">{isDark ? 'Modo Claro' : 'Modo Oscuro'}</span>
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            <span className="font-medium text-sm">{isDark ? 'Modo Claro' : 'Modo Oscuro'}</span>
           </button>
 
           <SidebarItem

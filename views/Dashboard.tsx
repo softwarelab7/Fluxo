@@ -1,4 +1,18 @@
 
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid
+} from 'recharts';
+
 import React, { useState, useEffect } from 'react';
 import GlassCard from '../components/GlassCard';
 import {
@@ -17,7 +31,7 @@ interface DashboardProps {
 
 const StatCard = ({ title, value, icon: Icon, color, trend }: any) => {
   // Extract base color name for gradient construction (simplistic approach for this constrained set)
-  let gradientClass = "from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 text-indigo-500 dark:text-indigo-400"; // Default
+  let gradientClass = "from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 text-blue-500 dark:text-blue-400"; // Default
 
   if (color.includes("rose") || color.includes("red")) {
     gradientClass = "from-rose-500/10 to-orange-500/10 dark:from-rose-500/20 dark:to-orange-500/20 text-rose-500 dark:text-rose-400";
@@ -53,8 +67,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     criticalCount: 0,
     pendingOrdersCount: 0,
     totalProducts: 0,
+    inventoryValue: 0,
     criticalItems: [] as any[],
-    highRotationItems: [] as any[]
+    highRotationItems: [] as any[],
+    brandData: [] as any[],
+    statusData: [] as any[]
   });
 
   useEffect(() => {
@@ -73,12 +90,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       const highRot = products.filter(p => p.is_high_rotation);
       const pending = pedidos.filter(p => p.estado === 'Pendiente');
 
+      // 1. Calculate Status Distribution
+      const statusCounts = {
+        'Crítico': critical.length,
+        'Bajo': products.filter(p => p.stock_actual > p.stock_minimo && p.stock_actual <= p.stock_minimo * 1.5).length,
+        'Óptimo': products.filter(p => p.stock_actual > p.stock_minimo * 1.5).length
+      };
+
+      const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+
+      // 2. Calculate Brand Distribution (Top 5)
+      const brandCounts: Record<string, number> = {};
+      products.forEach(p => {
+        const brandName = p.marca?.nombre || 'Otros';
+        brandCounts[brandName] = (brandCounts[brandName] || 0) + p.stock_actual;
+      });
+
+      const brandData = Object.entries(brandCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
       setStats({
         criticalCount: critical.length,
         pendingOrdersCount: pending.length,
         totalProducts: products.length,
+        inventoryValue: 0, // Placeholder if we had price
         criticalItems: critical,
-        highRotationItems: highRot
+        highRotationItems: highRot,
+        brandData,
+        statusData
       });
     } catch (error) {
       console.error("Error loading dashboard:", error);
@@ -103,10 +144,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <p className="text-slate-500 dark:text-slate-400">Control total del inventario y flujo de bodega.</p>
         </div>
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-[#334155] rounded-xl text-sm font-medium hover:bg-slate-50 dark:hover:bg-[#334155] text-slate-700 dark:text-slate-300 transition-all">Reporte Semanal</button>
+          <button className="px-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-[#334155] rounded-full text-sm font-bold hover:bg-slate-50 dark:hover:bg-[#334155] text-slate-700 dark:text-slate-300 transition-all shadow-sm">Reporte Semanal</button>
           <button
             onClick={() => onNavigate('orders')}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-medium transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] active:scale-95 text-white"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 text-white"
           >
             Nuevo Pedido
           </button>
@@ -132,7 +173,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           title="Total Referencias"
           value={stats.totalProducts}
           icon={Box}
-          color="bg-indigo-500"
+          color="bg-blue-500"
         />
       </div>
 
@@ -144,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Productos en Alerta</h3>
               <button
                 onClick={() => onNavigate('inventory')}
-                className="text-indigo-600 dark:text-indigo-400 text-sm font-medium hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors flex items-center gap-1 group"
+                className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:text-blue-500 dark:hover:text-blue-300 transition-colors flex items-center gap-1 group"
               >
                 Ver todo <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
@@ -164,12 +205,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     <tr key={p.id} className="group hover:bg-slate-50 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-lg">
                       <td className="py-4 pl-4">
                         <div className="flex items-center space-x-3">
-                          <div className="p-2.5 bg-indigo-500/10 rounded-xl group-hover:bg-indigo-500/20 transition-colors group-hover:scale-110 duration-300">
-                            <Box className="text-indigo-600 dark:text-indigo-400" size={20} />
+                          <div className="p-2.5 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors group-hover:scale-110 duration-300">
+                            <Box className="text-blue-600 dark:text-blue-400" size={20} />
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-white transition-colors">{p.nombre}</p>
-                            <p className="text-[11px] text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors font-mono tracking-wide">{p.sku}</p>
+                            <p className="font-semibold text-slate-900 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-white transition-colors">{p.nombre}</p>
+                            <p className="text-[11px] text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors font-mono tracking-wide">{p.sku}</p>
                           </div>
                         </div>
                       </td>
@@ -191,33 +232,61 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </GlassCard>
         </div>
 
-        {/* High Rotation Sidebar */}
+        {/* Brand Distribution Chart */}
         <div>
-          <GlassCard className="h-full">
-            <h3 className="text-xl font-bold mb-6 text-slate-900 dark:text-slate-100">Alta Rotación</h3>
-            <div className="space-y-4">
-              {stats.highRotationItems.slice(0, 5).map(p => (
-                <div key={p.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-[#1e293b] hover:bg-white dark:hover:bg-[#334155] border border-slate-200 dark:border-[#334155] hover:border-indigo-500/30 transition-all hover:translate-x-1 cursor-default group shadow-sm">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold overflow-hidden border border-slate-200 dark:border-white/5 group-hover:border-indigo-500/30 transition-colors">
-                      <Box size={24} className="group-hover:scale-110 transition-transform" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-white transition-colors truncate w-32">{p.nombre}</p>
-                      <p className="text-[10px] text-slate-500 font-mono tracking-wide">{p.marca?.nombre}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg bg-emerald-500/10">{p.stock_actual} un.</p>
-                  </div>
-                </div>
-              ))}
-              {stats.highRotationItems.length === 0 && (
-                <div className="py-10 text-center text-slate-500 text-sm">No hay productos de alta rotación definidos.</div>
-              )}
+          <GlassCard className="h-full flex flex-col">
+            <h3 className="text-xl font-bold mb-6 text-slate-900 dark:text-slate-100">Distribución por Marca</h3>
+            <div className="flex-1 w-full min-h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.brandData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {stats.brandData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'][index % 5]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                    itemStyle={{ color: '#f8fafc' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           </GlassCard>
         </div>
+      </div>
+
+      {/* Stock Status Bar Chart */}
+      <div className="h-80">
+        <GlassCard className="h-full">
+          <h3 className="text-xl font-bold mb-6 text-slate-900 dark:text-slate-100">Estado del Inventario</h3>
+          <div className="w-full h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.statusData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                />
+                <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]}>
+                  {stats.statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.name === 'Crítico' ? '#f43f5e' : entry.name === 'Bajo' ? '#f59e0b' : '#10b981'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </GlassCard>
       </div>
     </div>
   );

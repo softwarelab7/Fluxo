@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -50,7 +50,7 @@ const ToastItem: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast, onC
     const styles = {
         success: 'bg-emerald-600 text-white shadow-emerald-600/20',
         error: 'bg-rose-600 text-white shadow-rose-600/20',
-        info: 'bg-indigo-600 text-white shadow-indigo-600/20',
+        info: 'bg-blue-600 text-white shadow-blue-600/20',
     };
 
     const icons = {
@@ -77,3 +77,4 @@ export const useToast = () => {
     }
     return context;
 };
+

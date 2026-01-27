@@ -171,7 +171,7 @@ const Inventory = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen space-y-4">
-        <Loader2 className="animate-spin text-indigo-500" size={48} />
+        <Loader2 className="animate-spin text-blue-500" size={48} />
         <p className="text-slate-400 animate-pulse">Cargando inventario (Cloud)...</p>
       </div>
     );
@@ -186,11 +186,11 @@ const Inventory = () => {
             <p className="text-slate-400">Administra tus productos, marcas y categorías (Supabase).</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={handleExport} className="flex items-center px-4 py-2 bg-white dark:bg-[#1e293b] border border-emerald-500/20 rounded-xl text-sm font-medium hover:bg-emerald-50 dark:hover:bg-[#334155] text-emerald-600 dark:text-emerald-400 shadow-sm">
-              <Download size={18} className="mr-2" /> Exportar Excel
+            <button onClick={handleExport} className="flex items-center px-4 py-2 bg-white dark:bg-[#1e293b] rounded-full text-sm font-bold hover:bg-emerald-50 dark:hover:bg-[#1e293b] text-emerald-600 dark:text-emerald-400 shadow-sm hover:shadow-md transition-all border border-emerald-200 dark:border-emerald-500/30">
+              <Download size={16} className="mr-2" /> Exportar Excel
             </button>
-            <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-medium transition-all shadow-lg shadow-indigo-600/20">
-              <Plus size={18} className="mr-2" /> Nuevo Producto
+            <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 text-white">
+              <Plus size={16} className="mr-2" /> Nuevo Producto
             </button>
           </div>
         </div>
@@ -202,7 +202,7 @@ const Inventory = () => {
               <input
                 type="text"
                 placeholder="Buscar por referencia, nombre o marca..."
-                className="w-full pl-10 pr-4 py-2.5 input-premium rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-400"
+                className="w-full pl-10 pr-4 py-2.5 input-premium rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -248,14 +248,14 @@ const Inventory = () => {
                   }
 
                   return (
-                    <tr key={p.id} className="group hover:bg-indigo-50/30 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-sm">
+                    <tr key={p.id} className="group hover:bg-blue-50/30 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-sm">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
-                          <div className="p-2.5 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 rounded-xl group-hover:scale-110 transition-transform duration-300 border border-slate-100 dark:border-white/5">
-                            <Package className="text-indigo-600 dark:text-indigo-400" size={24} />
+                          <div className="p-2.5 bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 rounded-xl group-hover:scale-110 transition-transform duration-300 border border-slate-100 dark:border-white/5">
+                            <Package className="text-blue-600 dark:text-blue-400" size={24} />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-white transition-colors">{p.nombre}</p>
+                            <p className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-white transition-colors">{p.nombre}</p>
                             <div className="flex items-center space-x-2">
                               <span className="text-[10px] text-slate-500 font-mono tracking-wide">{p.sku}</span>
                               <span className="text-slate-300 dark:text-slate-700">•</span>
@@ -291,7 +291,7 @@ const Inventory = () => {
                           </button>
                           <button
                             onClick={() => handleEdit(p)}
-                            className="p-2 hover:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 rounded-lg transition-colors active:scale-95">
+                            className="p-2 hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 rounded-lg transition-colors active:scale-95">
                             <Edit2 size={16} />
                           </button>
                         </div>
@@ -315,7 +315,7 @@ const Inventory = () => {
       {
         showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 animate-in fade-in duration-200">
-            <GlassCard hoverEffect={false} className="w-full max-w-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 shadow-2xl shadow-indigo-500/20 border-slate-200 dark:border-[#334155] bg-white dark:bg-[#1e293b]">
+            <GlassCard hoverEffect={false} className="w-full max-w-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 shadow-2xl shadow-blue-500/20 border-slate-200 dark:border-[#334155] bg-white dark:bg-[#1e293b]">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">{editingProduct ? 'Editar Producto' : 'Nuevo Producto (Nube)'}</h3>
                 <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-500 dark:text-white">
@@ -326,24 +326,24 @@ const Inventory = () => {
                 <div className="space-y-2">
                   {/* Section: Identificación */}
                   <div className="space-y-2">
-                    <h4 className="text-[10px] items-center flex uppercase tracking-widest text-indigo-400 font-bold border-b border-indigo-500/10 pb-1 mb-1">
+                    <h4 className="text-[10px] items-center flex uppercase tracking-widest text-blue-400 font-bold border-b border-blue-500/10 pb-1 mb-1">
                       Identificación
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-0.5">
                         <label className="text-[10px] font-bold text-slate-400">Referencia</label>
-                        <input required type="text" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 text-slate-700 dark:text-white" />
+                        <input required type="text" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-white" />
                       </div>
                       <div className="space-y-0.5">
                         <label className="text-[10px] font-bold text-slate-400">Vehículos</label>
-                        <input required type="text" value={newProduct.nombre} onChange={e => setNewProduct({ ...newProduct, nombre: e.target.value })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 text-slate-700 dark:text-white" />
+                        <input required type="text" value={newProduct.nombre} onChange={e => setNewProduct({ ...newProduct, nombre: e.target.value })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-white" />
                       </div>
                     </div>
                   </div>
 
                   {/* Section: Clasificación */}
                   <div className="space-y-2">
-                    <h4 className="text-[10px] uppercase tracking-widest text-indigo-400 font-bold border-b border-indigo-500/10 pb-1 mb-1">
+                    <h4 className="text-[10px] uppercase tracking-widest text-blue-400 font-bold border-b border-blue-500/10 pb-1 mb-1">
                       Clasificación
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
@@ -395,26 +395,26 @@ const Inventory = () => {
 
                   {/* Section: Inventario */}
                   <div className="space-y-2">
-                    <h4 className="text-[10px] uppercase tracking-widest text-indigo-400 font-bold border-b border-indigo-500/10 pb-1 mb-1">
+                    <h4 className="text-[10px] uppercase tracking-widest text-blue-400 font-bold border-b border-blue-500/10 pb-1 mb-1">
                       Control de Stock
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-0.5">
                         <label className="text-[10px] font-bold text-slate-400">Stock Inicial</label>
-                        <input type="number" value={newProduct.stock_actual} onChange={e => setNewProduct({ ...newProduct, stock_actual: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 text-slate-700 dark:text-white" />
+                        <input type="number" value={newProduct.stock_actual} onChange={e => setNewProduct({ ...newProduct, stock_actual: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-white" />
                       </div>
                       <div className="space-y-0.5">
                         <label className="text-[10px] font-bold text-slate-400">Stock Mínimo</label>
-                        <input type="number" value={newProduct.stock_minimo} onChange={e => setNewProduct({ ...newProduct, stock_minimo: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 text-slate-700 dark:text-white" />
+                        <input type="number" value={newProduct.stock_minimo} onChange={e => setNewProduct({ ...newProduct, stock_minimo: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-white" />
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 pt-2">
-                      <input type="checkbox" id="rotation" checked={newProduct.is_high_rotation} onChange={e => setNewProduct({ ...newProduct, is_high_rotation: e.target.checked })} className="accent-indigo-500 scale-125" />
+                      <input type="checkbox" id="rotation" checked={newProduct.is_high_rotation} onChange={e => setNewProduct({ ...newProduct, is_high_rotation: e.target.checked })} className="accent-blue-500 scale-125" />
                       <label htmlFor="rotation" className="text-sm font-medium text-slate-600 dark:text-slate-300">Producto de Alta Rotación</label>
                     </div>
                   </div>
                 </div>
-                <button type="submit" className="w-full py-2 mt-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all text-sm text-white">
+                <button type="submit" className="w-full py-2 mt-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all text-sm text-white">
                   {editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
                 </button>
               </form>
