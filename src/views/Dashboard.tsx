@@ -21,9 +21,13 @@ import {
   Clock,
   Box,
   ArrowUpRight,
-  ChevronRight
+  ChevronRight,
+  Truck,
+  FileText,
+  Calendar
 } from 'lucide-react';
 import { repository } from '../services/repository';
+import Modal from '../components/Modal';
 
 interface DashboardProps {
   onNavigate: (view: string) => void;
@@ -66,6 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [stats, setStats] = useState({
     criticalCount: 0,
     pendingOrdersCount: 0,
+    inTransitCount: 0,
     totalProducts: 0,
     inventoryValue: 0,
     criticalItems: [] as any[],
@@ -73,6 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     brandData: [] as any[],
     statusData: [] as any[]
   });
+  const [showReportModal, setShowReportModal] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -89,6 +95,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       const critical = products.filter(p => p.stock_actual <= p.stock_minimo);
       const highRot = products.filter(p => p.is_high_rotation);
       const pending = pedidos.filter(p => p.estado === 'Pendiente');
+      const inTransit = pedidos.filter(p => p.estado === 'En Camino');
 
       // 1. Calculate Status Distribution
       const statusCounts = {
@@ -114,6 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setStats({
         criticalCount: critical.length,
         pendingOrdersCount: pending.length,
+        inTransitCount: inTransit.length,
         totalProducts: products.length,
         inventoryValue: 0, // Placeholder if we had price
         criticalItems: critical,
@@ -126,6 +134,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleWeeklyReport = () => {
+    setShowReportModal(true);
   };
 
   if (loading) {
@@ -144,7 +156,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <p className="text-slate-500 dark:text-slate-400">Control total del inventario y flujo de bodega.</p>
         </div>
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-[#334155] rounded-full text-sm font-bold hover:bg-slate-50 dark:hover:bg-[#334155] text-slate-700 dark:text-slate-300 transition-all shadow-sm">Reporte Semanal</button>
+          <button onClick={handleWeeklyReport} className="px-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-[#334155] rounded-full text-sm font-bold hover:bg-slate-50 dark:hover:bg-[#334155] text-slate-700 dark:text-slate-300 transition-all shadow-sm">Reporte Semanal</button>
           <button
             onClick={() => onNavigate('orders')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 text-white"
@@ -164,10 +176,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           trend={stats.criticalCount > 0 ? "Atención" : undefined}
         />
         <StatCard
-          title="Pedidos en Curso"
-          value={stats.pendingOrdersCount}
-          icon={Clock}
-          color="bg-amber-500"
+          title={stats.inTransitCount > 0 ? "En Camino" : "Borradores"}
+          value={stats.inTransitCount > 0 ? stats.inTransitCount : stats.pendingOrdersCount}
+          icon={stats.inTransitCount > 0 ? Truck : Clock}
+          color={stats.inTransitCount > 0 ? "bg-blue-500" : "bg-amber-500"}
+          trend={stats.inTransitCount > 0 ? "Por Recibir" : undefined}
         />
         <StatCard
           title="Total Referencias"
@@ -288,7 +301,112 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
         </GlassCard>
       </div>
-    </div>
+      <Modal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        title="Reporte Semanal"
+        maxWidth="sm:max-w-xl"
+        footer={
+          <div className="w-full flex justify-between items-center">
+            <p className="text-xs text-slate-400 font-medium">Actualizado: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <button
+              onClick={() => setShowReportModal(false)}
+              className="px-5 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity"
+            >
+              Cerrar
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          {/* Header Info */}
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-blue-50 dark:bg-blue-500/10 rounded-lg">
+                <Calendar size={18} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana Actual</p>
+                <h2 className="text-sm font-bold text-slate-800 dark:text-white capitalize">
+                  {new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}
+                </h2>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 rounded-full border border-emerald-100 dark:border-emerald-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">100% Operativo</span>
+            </div>
+          </div>
+
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-200 transition-all">
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-0.5">Referencias</span>
+                <p className="text-2xl font-bold text-slate-800 dark:text-white">{stats.totalProducts}</p>
+              </div>
+              <Box size={20} className="text-slate-400 group-hover:text-blue-500 transition-colors opacity-70" />
+            </div>
+
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-rose-200 transition-all">
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-rose-500 transition-colors">Críticos</span>
+                <p className="text-2xl font-bold text-slate-800 dark:text-white group-hover:text-rose-500 transition-colors">{stats.criticalCount}</p>
+              </div>
+              <AlertTriangle size={20} className="text-slate-400 group-hover:text-rose-500 transition-colors opacity-70" />
+            </div>
+
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-200 transition-all">
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-blue-500 transition-colors">En Camino</span>
+                <p className="text-2xl font-bold text-slate-800 dark:text-white group-hover:text-blue-500 transition-colors">{stats.inTransitCount}</p>
+              </div>
+              <Truck size={20} className="text-slate-400 group-hover:text-blue-500 transition-colors opacity-70" />
+            </div>
+
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-amber-200 transition-all">
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-amber-500 transition-colors">Borradores</span>
+                <p className="text-2xl font-bold text-slate-800 dark:text-white group-hover:text-amber-500 transition-colors">{stats.pendingOrdersCount}</p>
+              </div>
+              <Clock size={20} className="text-slate-400 group-hover:text-amber-500 transition-colors opacity-70" />
+            </div>
+          </div>
+
+          {/* Critical Items List */}
+          {stats.criticalItems.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between px-1">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Alertas ({stats.criticalItems.length})</h4>
+                {stats.criticalItems.length > 3 && (
+                  <button onClick={() => onNavigate('inventory')} className="text-xs font-bold text-blue-600 hover:underline">Ver todo</button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {stats.criticalItems.slice(0, 4).map(p => (
+                  <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800/50 hover:shadow-sm transition-all">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center text-xs font-bold text-rose-600 dark:text-rose-400 shrink-0">
+                        {p.sku.slice(0, 2)}
+                      </div>
+                      <div className="truncate">
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">{p.nombre}</p>
+                        <p className="text-[10px] text-slate-400 leading-none mt-0.5">{p.sku}</p>
+                      </div>
+                    </div>
+                    <div className="text-right ml-2 shrink-0">
+                      <p className="text-sm font-bold text-rose-500">{p.stock_actual} <span className="text-[10px] text-slate-400 font-normal">/ {p.stock_minimo}</span></p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+    </div >
   );
 };
 

@@ -29,7 +29,7 @@ CREATE TABLE marcas (
 -- 3. Productos
 CREATE TABLE productos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  sku TEXT NOT NULL UNIQUE,
+  sku TEXT NOT NULL,
   nombre TEXT NOT NULL,
   marca_id UUID REFERENCES marcas(id),
   subcategoria_id UUID REFERENCES categorias(id),
@@ -38,7 +38,8 @@ CREATE TABLE productos (
   stock_actual INTEGER DEFAULT 0,
   stock_minimo INTEGER DEFAULT 5,
   is_high_rotation BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(sku, marca_id)
 );
 
 -- 4. Pedidos
@@ -61,6 +62,7 @@ CREATE TABLE pedido_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   pedido_id UUID REFERENCES pedidos(id) ON DELETE CASCADE,
   producto_id UUID REFERENCES productos(id),
+  producto_real_id UUID REFERENCES productos(id), -- If set, means substitution
   cantidad_pedida INTEGER NOT NULL,
   cantidad_recibida INTEGER DEFAULT 0,
   estado_item estado_item DEFAULT 'No llegó',

@@ -115,7 +115,13 @@ const Inventory = () => {
       resetForm();
     } catch (error: any) {
       console.error(error);
-      alert("Error al guardar producto: " + (error.message || ""));
+      const msg = error.message || "";
+      // Check for both old and new constraint names just in case
+      if (msg.includes("duplicate key") || msg.includes("productos_sku_key") || msg.includes("productos_sku_marca_key")) {
+        alert("Error: La referencia ya existe para la marca seleccionada. Intenta con otra.");
+      } else {
+        alert("Error al guardar producto: " + msg);
+      }
     }
   };
 
@@ -229,7 +235,7 @@ const Inventory = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-[#334155]">
-                {filtered.map(p => {
+                {filtered.map((p, index) => {
                   let statusColor = 'text-emerald-500 dark:text-emerald-400';
                   let StatusIcon = CheckCircle;
                   let statusBg = 'bg-emerald-500/10 border-emerald-500/20';
@@ -248,7 +254,11 @@ const Inventory = () => {
                   }
 
                   return (
-                    <tr key={p.id} className="group hover:bg-blue-50/30 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-sm">
+                    <tr
+                      key={p.id}
+                      className="group hover:bg-blue-50/30 dark:hover:bg-[#334155]/20 transition-colors duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-sm animate-in fade-in slide-in-from-bottom-2"
+                      style={{ animationDelay: `${Math.min(index * 50, 500)}ms`, animationFillMode: 'both' }}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
                           <div className="p-2.5 bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 rounded-xl group-hover:scale-110 transition-transform duration-300 border border-slate-100 dark:border-white/5">
@@ -265,7 +275,19 @@ const Inventory = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider">{p.categoria?.name}</span>
+                        <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider">
+                          {(() => {
+                            // Logic to always show the Parent (Top-Level) Category
+                            const currentCatId = p.subcategoria_id || p.categoria?.id;
+                            const currentCat = categorias.find(c => c.id === currentCatId) || p.categoria;
+
+                            if (currentCat?.parent_id) {
+                              const parent = categorias.find(c => c.id === currentCat.parent_id);
+                              if (parent) return parent.name;
+                            }
+                            return currentCat?.name || 'N/A';
+                          })()}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`font-mono text-lg font-bold ${statusColor}`}>

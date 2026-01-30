@@ -55,6 +55,7 @@ export interface PedidoItem {
   id: string;
   pedido_id: string;
   producto_id: string;
+  producto_real_id?: string;
   cantidad_pedida: number;
   cantidad_recibida: number;
   estado_item: EstadoItem;
@@ -62,4 +63,5 @@ export interface PedidoItem {
   auditado_at?: string;
   // Joins
   producto?: Producto;
+  producto_real?: Producto;
 }

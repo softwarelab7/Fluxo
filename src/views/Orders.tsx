@@ -75,7 +75,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       setCategories(cats);
       setProveedores(provs);
       setProducts(prods);
-      setPendingOrders(orders.filter(o => o.estado !== 'Cancelado')); // Show active orders
+      setPendingOrders(orders.filter(o => o.estado === 'Pendiente')); // Show only draftsafts
 
       // Init default filters
       if (provs.length > 0) setSelectedProvFilter(provs[0].id);
@@ -141,6 +141,20 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     }
   };
 
+  const handleSendToAudit = async (order: Pedido) => {
+    try {
+      setLoading(true);
+      await repository.updatePedido(order.id, { estado: 'En Camino' });
+      addToast("Pedido enviado a auditoría (En Camino).", 'success');
+      loadData(); // Refresh list
+    } catch (error) {
+      console.error("Error sending order to audit:", error);
+      addToast("Error al enviar el pedido.", 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Effect: Clean up when switching modes to ensure strict context
   useEffect(() => {
     if (editingOrder) return; // Don't reset if we are just loading an edit
@@ -195,7 +209,9 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     if (orderMode === 'PROVIDER') {
       matchesContext = p.preferred_supplier_id === selectedProvFilter;
     } else {
-      matchesContext = p.subcategoria_id === selectedCategory;
+      // Check if product is directly in category OR if product's category is a child of selected category
+      const productCat = categories.find(c => c.id === p.subcategoria_id);
+      matchesContext = p.subcategoria_id === selectedCategory || productCat?.parent_id === selectedCategory;
     }
 
     return matchesSearch && matchesContext;
@@ -218,7 +234,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     return [...new Set(cartItems.map(i => i.product.subcategoria_id))].length;
   }, [cartItems]);
 
-  const handleSaveOrder = async () => {
+  const handleSaveOrder = async (stayOpen: boolean = false) => {
     if (cartItems.length === 0) return;
 
     try {
@@ -265,7 +281,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           }
         }
 
-        addToast("Pedido actualizado exitosamente.", 'success');
+        addToast("Borrador actualizado exitosamente.", 'success');
 
       } else {
         // CREATE NEW ORDER
@@ -289,19 +305,40 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         }));
 
         await repository.addPedidoItems(itemsPayload);
-        addToast(`Pedido #${newPedido.id.slice(0, 8)} guardado en Pendientes.`, 'success');
+        addToast(`Borrador #${newPedido.id.slice(0, 8)} guardado.`, 'success');
+
+        // If putting into edit mode after creation, we'd need more logic, 
+        // but for now simple creation flow:
+        if (stayOpen) {
+          // To keep editing a NEWLY created order, we would need to switch to EDIT mode.
+          // For simplicity in this iteration, 'stayOpen' on NEW orders might just reset/notify, 
+          // OR correctly load the new order. Let's load it to allow continued editing.
+          await loadOrderForEditing(newPedido);
+          return;
+        }
       }
 
-      // Cleanup
-      setCart({});
-      setEditingOrder(null);
-      setOriginalOrderItems([]);
-      loadData(); // Refresh list
-      setViewMode('LIST');
+      if (!stayOpen) {
+        // Cleanup
+        setCart({});
+        setEditingOrder(null);
+        setOriginalOrderItems([]);
+        loadData(); // Refresh list
+        setViewMode('LIST');
+      } else {
+        // If staying open (and was already editing), just refresh items to sync IDs if needed?
+        // Actually, for "Save Progress", we might not need to re-fetch if we trust local state,
+        // but re-fetching ensures we have DB IDs for items.
+        if (editingOrder) {
+          // Refresh the items to get their IDs if they were new
+          const items = await repository.getPedidoItems(editingOrder.id);
+          setOriginalOrderItems(items);
+        }
+      }
 
     } catch (error) {
       console.error("Error saving order:", error);
-      addToast("Error al guardar el pedido.", 'error');
+      addToast("Error al guardar el borrador.", 'error');
     }
   };
 
@@ -349,8 +386,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       <div className="space-y-6 animate-in fade-in duration-500 pb-10">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-bold">Pedidos Pendientes</h2>
-            <p className="text-slate-400">Administra, edita y descarga tus pedidos.</p>
+            <h2 className="text-3xl font-bold">Borradores de Pedido</h2>
+            <p className="text-slate-400">Tus pedidos en preparación. Edítalos antes de enviar.</p>
           </div>
           {/* Hide New Order button if we are strictly in "Pending List" mode from menu, 
                       or keep it to allow jumping modes. Let's allowing jumping for flexibility. */}
@@ -372,7 +409,10 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-slate-800 dark:text-white">
-                    {order.proveedor?.nombre || 'Proveedor Desconocido'}
+                    {(() => {
+                      const brands = Array.from(new Set(order.items?.map(i => i.producto?.marca?.nombre).filter(Boolean)));
+                      return brands.length > 0 ? brands.join(', ') : (order.proveedor?.nombre || 'Proveedor Desconocido');
+                    })()}
                   </h3>
                   <p className="text-xs text-slate-500 font-mono">ID: {order.id.slice(0, 8)} • {new Date(order.fecha_creacion).toLocaleDateString()}</p>
                 </div>
@@ -393,6 +433,13 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 <div className="h-10 w-px bg-slate-200 dark:bg-white/10 mx-2"></div>
 
                 <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleSendToAudit(order)}
+                    className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
+                    title="Enviar a Auditoría (En Camino)"
+                  >
+                    <Send size={20} />
+                  </button>
                   <button
                     onClick={() => loadOrderForEditing(order)}
                     className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
@@ -539,16 +586,53 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border shadow-lg ${selectedCategory === cat.id ? 'bg-violet-600/90 text-white border-violet-400/50 shadow-violet-600/30 scale-105' : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#334155] hover:border-slate-300 dark:hover:border-slate-500'}`}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
+                {categories.filter(c => !c.parent_id).map(cat => {
+                  const isActive = selectedCategory === cat.id || (categories.find(c => c.id === selectedCategory)?.parent_id === cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border shadow-lg ${isActive ? 'bg-violet-600/90 text-white border-violet-400/50 shadow-violet-600/30 scale-105' : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#334155] hover:border-slate-300 dark:hover:border-slate-500'}`}
+                    >
+                      {cat.name}
+                    </button>
+                  )
+                })}
               </div>
+
+              {/* Subcategories */}
+              {(() => {
+                const current = categories.find(c => c.id === selectedCategory);
+                const parentId = current?.parent_id || (current && !current.parent_id ? current.id : null);
+                const subs = parentId ? categories.filter(c => c.parent_id === parentId) : [];
+
+                if (subs.length > 0) {
+                  return (
+                    <div className="pt-2 border-t border-slate-100 dark:border-[#334155] mt-2 animate-in fade-in slide-in-from-top-1">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-[10px] font-bold text-slate-400 mr-1">Filtrar:</span>
+                        {/* Option to go back to Parent (All) */}
+                        <button
+                          onClick={() => setSelectedCategory(parentId!)}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${selectedCategory === parentId ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-300 border-violet-200 dark:border-violet-500/30' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:bg-slate-100'}`}
+                        >
+                          Todo
+                        </button>
+                        {subs.map(sub => (
+                          <button
+                            key={sub.id}
+                            onClick={() => setSelectedCategory(sub.id)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${selectedCategory === sub.id ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-300 border-violet-200 dark:border-violet-500/30' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:bg-slate-100'}`}
+                          >
+                            {sub.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }
+                return null;
+              })()}
             </div>
           )}
         </div>
@@ -628,7 +712,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
               </div>
             </div>
 
-            <div className="bg-slate-50 dark:bg-[#1e293b] rounded-2xl p-4 mb-6 space-y-4 border border-slate-200 dark:border-[#334155]">
+            <div className="bg-slate-100 dark:bg-[#1e293b] rounded-2xl p-4 mb-6 space-y-4 border border-slate-200 dark:border-[#334155]">
               <div className="space-y-1">
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200 py-1">
                   {activeContextName}
@@ -651,7 +735,10 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 <div key={product.id} className="flex items-center justify-between p-2.5 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] group hover:bg-slate-50 dark:hover:bg-[#1e293b] transition-all">
                   <div className="min-w-0 flex-1 mr-3">
                     <p className="text-xs font-bold truncate text-slate-700 dark:text-slate-200">{product.nombre}</p>
-                    <p className="text-xs text-slate-500 font-mono uppercase">{product.sku}</p>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1 rounded">{product.marca?.nombre || 'Generico'}</span>
+                      <p className="text-[10px] text-slate-400 font-mono uppercase">{product.sku}</p>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center bg-slate-100 dark:bg-black/30 rounded-lg px-1.5 py-0.5 border border-slate-200 dark:border-white/5">
@@ -666,24 +753,37 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 </div>
               ))}
               {cartItems.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-48 opacity-20">
-                  <ShoppingCart size={32} className="mb-2" />
-                  <p className="text-xs font-bold uppercase tracking-widest">Carrito Vacío</p>
+                <div className="flex flex-col items-center justify-center h-48 opacity-50">
+                  <ShoppingCart size={32} className="mb-2 text-slate-400 dark:text-slate-600" />
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Carrito Vacío</p>
                 </div>
               )}
             </div>
 
-            <button
-              onClick={handleSaveOrder}
-              disabled={cartItems.length === 0}
-              className={`w-full py-3 rounded-full flex items-center justify-center space-x-3 font-bold transition-all shadow-lg group border ${cartItems.length === 0
-                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border-slate-200 dark:border-white/5'
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white border-transparent shadow-emerald-600/30 active:scale-[0.98]'
-                }`}
-            >
-              <Save size={18} className={cartItems.length > 0 ? 'group-hover:scale-110 transition-transform' : ''} />
-              <span>{editingOrder ? 'Guardar Cambios' : 'Guardar Pedido'}</span>
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleSaveOrder(true)}
+                disabled={cartItems.length === 0}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center justify-center ${cartItems.length === 0
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border-slate-200 dark:border-white/5'
+                  : 'bg-white dark:bg-transparent text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-white/5 shadow-sm hover:shadow-md'
+                  }`}
+              >
+                <span>Guardar Progreso</span>
+              </button>
+
+              <button
+                onClick={() => handleSaveOrder(false)}
+                disabled={cartItems.length === 0}
+                className={`flex-[1.5] py-2.5 rounded-xl text-sm flex items-center justify-center space-x-2 font-bold transition-all shadow-md group border ${cartItems.length === 0
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border-slate-200 dark:border-white/5'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white border-transparent shadow-emerald-600/20 hover:shadow-emerald-600/40 active:scale-[0.98]'
+                  }`}
+              >
+                <Save size={16} className={cartItems.length > 0 ? 'group-hover:scale-110 transition-transform' : ''} />
+                <span>{editingOrder ? 'Terminar' : 'Guardar Borrador'}</span>
+              </button>
+            </div>
           </GlassCard>
         </div>
       </div>

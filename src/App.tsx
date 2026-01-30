@@ -24,6 +24,8 @@ const App: React.FC = () => {
         return <Orders initialViewMode="LIST" />;
       case 'audit':
         return <Audit />;
+      case 'audit-missing':
+        return <Audit initialViewMode="MISSING" />;
       case 'suppliers':
         return <Suppliers />;
       case 'settings':

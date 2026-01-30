@@ -195,7 +195,18 @@ export const repository = {
             .from('pedidos')
             .select(`
                 *,
-                proveedor:proveedores(*)
+                proveedor:proveedores(*),
+                items:pedido_items(
+                    producto:productos!producto_id(
+                    marca:marcas(*),
+                    proveedor:proveedores(*)
+                ),
+                producto_real:productos!producto_real_id(
+                    *,
+                    marca:marcas(*),
+                    proveedor:proveedores(*)
+                )
+            )
             `)
             .order('fecha_creacion', { ascending: false });
         if (error) throw error;
@@ -207,7 +218,16 @@ export const repository = {
             .from('pedido_items')
             .select(`
                 *,
-                producto:productos(*)
+                producto:productos!producto_id(
+                    *,
+                    marca:marcas(*),
+                    proveedor:proveedores(*)
+                ),
+                producto_real:productos!producto_real_id(
+                    *,
+                    marca:marcas(*),
+                    proveedor:proveedores(*)
+                )
             `)
             .eq('pedido_id', pedidoId);
         if (error) throw error;
