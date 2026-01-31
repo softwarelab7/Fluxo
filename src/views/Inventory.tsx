@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import CustomSelect from '../components/CustomSelect';
+import Modal from '../components/Modal';
+import { useToast } from '../components/Toast';
 import * as XLSX from 'xlsx';
 import { Producto, Marca, Categoria } from '../types';
 
@@ -29,6 +31,8 @@ const Inventory = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [selectedParentId, setSelectedParentId] = useState('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   const [newProduct, setNewProduct] = useState({
     sku: '',
@@ -60,7 +64,7 @@ const Inventory = () => {
       setProveedores(provs);
     } catch (error) {
       console.error("Error loading inventory:", error);
-      alert("Error al cargar inventario");
+      addToast("Error al cargar inventario", "error");
     } finally {
       setLoading(false);
     }
@@ -83,15 +87,22 @@ const Inventory = () => {
     XLSX.writeFile(wb, "Inventario_Fluxo.xlsx");
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de eliminar este producto?')) {
-      try {
-        await repository.deleteProducto(id);
-        await loadData();
-      } catch (error) {
-        console.error(error);
-        alert("Error al eliminar producto");
-      }
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirmation(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmation) return;
+
+    try {
+      await repository.deleteProducto(deleteConfirmation);
+      await loadData();
+      addToast("Producto eliminado correctamente", "success");
+    } catch (error) {
+      console.error(error);
+      addToast("Error al eliminar producto", "error");
+    } finally {
+      setDeleteConfirmation(null);
     }
   };
 
@@ -118,9 +129,9 @@ const Inventory = () => {
       const msg = error.message || "";
       // Check for both old and new constraint names just in case
       if (msg.includes("duplicate key") || msg.includes("productos_sku_key") || msg.includes("productos_sku_marca_key")) {
-        alert("Error: La referencia ya existe para la marca seleccionada. Intenta con otra.");
+        addToast("Error: La referencia ya existe para la marca seleccionada.", "error");
       } else {
-        alert("Error al guardar producto: " + msg);
+        addToast("Error al guardar producto: " + msg, "error");
       }
     }
   };
@@ -308,7 +319,7 @@ const Inventory = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                          <button className="p-2 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 rounded-lg transition-colors active:scale-95" onClick={() => handleDelete(p.id)}>
+                          <button className="p-2 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 rounded-lg transition-colors active:scale-95" onClick={() => handleDeleteClick(p.id)}>
                             <Trash2 size={16} />
                           </button>
                           <button
@@ -444,6 +455,42 @@ const Inventory = () => {
           </div>
         )
       }
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteConfirmation}
+        onClose={() => setDeleteConfirmation(null)}
+        title="Confirmar Eliminación"
+        maxWidth="sm:max-w-md"
+        footer={
+          <>
+            <button
+              onClick={() => setDeleteConfirmation(null)}
+              className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-rose-600/20 transition-all"
+            >
+              Eliminar Producto
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center p-4">
+          <div className="w-12 h-12 bg-rose-100 dark:bg-rose-500/10 rounded-full flex items-center justify-center mb-4">
+            <Trash2 size={24} className="text-rose-600 dark:text-rose-400" />
+          </div>
+          <p className="text-slate-600 dark:text-slate-300 mb-2">
+            ¿Estás seguro de que deseas eliminar este producto?
+          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Esta acción no se puede deshacer.
+          </p>
+        </div>
+      </Modal>
     </>
   );
 };

@@ -47,9 +47,9 @@ const StatCard = ({ title, value, icon: Icon, color, trend }: any) => {
 
   return (
     <GlassCard className="flex flex-col justify-between h-full group hover:bg-white dark:hover:bg-[#334155] border-slate-200 dark:border-[#334155] transition-all duration-300 shadow-sm hover:shadow-md">
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-3 rounded-2xl bg-gradient-to-br ${gradientClass} shadow-sm group-hover:scale-110 transition-transform duration-300 border border-slate-100 dark:border-white/5`}>
-          <Icon size={24} />
+      <div className="flex justify-between items-start mb-1">
+        <div className={`p-1.5 rounded-lg bg-gradient-to-br ${gradientClass} shadow-sm group-hover:scale-110 transition-transform duration-300 border border-slate-100 dark:border-white/5`}>
+          <Icon size={16} />
         </div>
         {trend && (
           <span className="flex items-center text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-1 rounded-full uppercase tracking-wider">
@@ -58,8 +58,8 @@ const StatCard = ({ title, value, icon: Icon, color, trend }: any) => {
         )}
       </div>
       <div>
-        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide uppercase">{title}</p>
-        <h3 className="text-3xl font-bold mt-1 text-slate-800 dark:text-white">{value}</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs font-medium tracking-wide uppercase">{title}</p>
+        <h3 className="text-xl font-bold mt-0.5 text-slate-800 dark:text-white">{value}</h3>
       </div>
     </GlassCard>
   );
@@ -167,7 +167,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </header>
 
       {/* Bento Grid Indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <StatCard
           title="Stock Crítico"
           value={stats.criticalCount}
@@ -190,7 +190,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Critical Items List */}
         <div className="lg:col-span-2">
           <GlassCard className="h-full">
@@ -216,20 +216,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <tbody className="divide-y divide-slate-200 dark:divide-[#334155]">
                   {stats.criticalItems.slice(0, 5).map(p => (
                     <tr key={p.id} className="group hover:bg-slate-50 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-lg">
-                      <td className="py-4 pl-4">
+                      <td className="py-2 pl-4">
                         <div className="flex items-center space-x-3">
                           <div className="p-2.5 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors group-hover:scale-110 duration-300">
-                            <Box className="text-blue-600 dark:text-blue-400" size={20} />
+                            <Box className="text-blue-600 dark:text-blue-400" size={18} />
                           </div>
                           <div>
                             <p className="font-semibold text-slate-900 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-white transition-colors">{p.nombre}</p>
-                            <p className="text-[11px] text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors font-mono tracking-wide">{p.sku}</p>
+                            <p className="text-[10px] text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors font-mono tracking-wide">{p.sku}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 font-bold text-rose-500 dark:text-rose-400 text-center text-lg">{p.stock_actual}</td>
-                      <td className="py-4 text-slate-500 dark:text-slate-400 text-center font-mono">{p.stock_minimo}</td>
-                      <td className="py-4">
+                      <td className="py-2 font-bold text-rose-500 dark:text-rose-400 text-center text-lg">{p.stock_actual}</td>
+                      <td className="py-2 text-slate-500 dark:text-slate-400 text-center font-mono">{p.stock_minimo}</td>
+                      <td className="py-2">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold uppercase tracking-wider">
                           Stock Bajo
                         </span>
@@ -247,17 +247,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
         {/* Brand Distribution Chart */}
         <div>
-          <GlassCard className="h-full flex flex-col">
-            <h3 className="text-xl font-bold mb-6 text-slate-900 dark:text-slate-100">Distribución por Marca</h3>
-            <div className="flex-1 w-full min-h-[300px]">
+          <GlassCard className="h-full flex flex-col p-4">
+            <h3 className="text-sm font-bold mb-2 text-slate-900 dark:text-slate-100">Distribución por Marca</h3>
+            <div className="flex-1 w-full min-h-[180px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={stats.brandData}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
+                    cy="45%"
+                    innerRadius={40}
+                    outerRadius={60}
                     paddingAngle={5}
                     dataKey="value"
                   >
@@ -266,10 +266,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc', fontSize: '12px' }}
                     itemStyle={{ color: '#f8fafc' }}
                   />
-                  <Legend verticalAlign="bottom" height={36} />
+                  <Legend verticalAlign="bottom" height={36} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -278,10 +278,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       {/* Stock Status Bar Chart */}
-      <div className="h-80">
-        <GlassCard className="h-full">
-          <h3 className="text-xl font-bold mb-6 text-slate-900 dark:text-slate-100">Estado del Inventario</h3>
-          <div className="w-full h-64">
+      <div className="h-52">
+        <GlassCard className="h-full p-4">
+          <h3 className="text-sm font-bold mb-2 text-slate-900 dark:text-slate-100">Estado del Inventario</h3>
+          <div className="w-full h-36">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.statusData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />

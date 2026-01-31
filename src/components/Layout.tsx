@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { repository } from '../services/repository';
+import { supabase } from '../services/supabase';
 import {
   LayoutDashboard,
   Package,
@@ -15,7 +16,9 @@ import {
   Clock,
   AlertTriangle,
   ChevronRight,
-  Bell
+  Bell,
+  Users as UsersIcon,
+  LogOut
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -52,9 +55,10 @@ interface LayoutProps {
   children: React.ReactNode;
   activeView: string;
   setActiveView: (view: string) => void;
+  userRole?: 'admin' | 'employee' | null;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, userRole }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [missingCount, setMissingCount] = useState(0);
@@ -112,6 +116,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView }) 
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'inventory', label: 'Inventario', icon: Package },
@@ -120,6 +128,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView }) 
     { id: 'suppliers', label: 'Proveedores', icon: Truck },
     { id: 'audit', label: 'Auditoría', icon: Layers },
   ];
+
+  if (userRole === 'admin') {
+    menuItems.push({ id: 'users', label: 'Usuarios', icon: UsersIcon });
+  }
 
   const pageTitle = menuItems.find(item => item.id === activeView)?.label || 'Fluxo';
 
@@ -201,6 +213,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView }) 
             onClick={() => setActiveView('settings')}
             active={activeView === 'settings'}
           />
+
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-2 rounded-full transition-all duration-200 text-slate-500 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 group"
+          >
+            <LogOut size={18} />
+            <span className="font-medium text-sm">Cerrar Sesión</span>
+          </button>
         </div>
       </aside>
 
