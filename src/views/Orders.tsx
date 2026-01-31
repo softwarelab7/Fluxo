@@ -17,7 +17,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { repository } from '../services/repository';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { Categoria, Proveedor, Producto, Pedido, PedidoItem } from '../types';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -347,22 +347,150 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       setLoading(true);
       const items = await repository.getPedidoItems(order.id);
 
-      const data = items.map(item => ({
-        'Referencia': item.producto?.sku,
-        'Producto': item.producto?.nombre,
-        'Categoría': item.producto?.categoria?.name,
-        'Marca': item.producto?.marca?.nombre,
-        'Proveedor': order.proveedor?.nombre,
-        'Cantidad': item.cantidad_pedida
-      }));
+      // Filename/Title based on Brand
+      const firstBrand = items[0]?.producto?.marca?.nombre?.toUpperCase() || 'GENERAL';
+      const cleanBrand = firstBrand.replace(/[^a-zA-Z0-9ñÑ]/g, '');
+      const title = `PEDIDOS ${firstBrand}`;
 
-      const ws = XLSX.utils.json_to_sheet(data);
+      const headers = ['REFERENCIA', 'PRODUCTO / VEHÍCULO', 'MARCA', 'CATEGORÍA', 'SUBCATEGORÍA', 'CANTIDAD'];
+
+      const rows = items.map(item => {
+        // Resolve Category Hierarchy
+        const subCat = categories.find(c => c.id === item.producto?.subcategoria_id);
+        const parentCat = subCat?.parent_id
+          ? categories.find(c => c.id === subCat.parent_id)
+          : (subCat?.parent_id === null ? subCat : undefined);
+
+        const categoryName = parentCat?.name || (subCat?.parent_id ? 'Desconocida' : subCat?.name);
+        const subCategoryName = parentCat ? subCat?.name : '';
+
+        return [
+          item.producto?.sku,
+          item.producto?.nombre,
+          item.producto?.marca?.nombre,
+          categoryName,
+          subCategoryName,
+          item.cantidad_pedida
+        ];
+      });
+
+      const ws_data = [
+        [title],
+        headers,
+        ...rows
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+
+
+      // Merge Title Cell
+      if (!ws['!merges']) ws['!merges'] = [];
+      ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } });
+
+
+
+      // Styles
+      const borderStyle = {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } }
+      };
+
+      const titleStyle = {
+        font: { name: "Calibri", sz: 16, bold: true, color: { rgb: "4472C4" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        fill: { fgColor: { rgb: "FFFFFF" } }
+      };
+
+      const headerStyle = {
+        fill: { fgColor: { rgb: "F8CBAD" } }, // Salmon
+        font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "000000" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: borderStyle
+      };
+
+      const cellStyle = {
+        font: { name: "Calibri", sz: 11 },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: borderStyle
+      };
+
+      const quantityCellStyle = {
+        fill: { fgColor: { rgb: "BDD7EE" } }, // Light Blue
+        font: { name: "Calibri", sz: 11, bold: true },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: borderStyle
+      };
+
+      const totalLabelStyle = {
+        fill: { fgColor: { rgb: "E2E8F0" } }, // Light Slate
+        font: { name: "Calibri", sz: 12, bold: true },
+        alignment: { horizontal: "right", vertical: "center" },
+        border: {
+          top: { style: "double", color: { rgb: "000000" } },
+          bottom: { style: "double", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } }
+        }
+      };
+
+      const totalValueStyle = {
+        fill: { fgColor: { rgb: "BDD7EE" } }, // Blue like qty
+        font: { name: "Calibri", sz: 12, bold: true },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "double", color: { rgb: "000000" } },
+          bottom: { style: "double", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } }
+        }
+      };
+
+      // Apply Styles
+      // Refresh range after adding total row
+      const newRange = XLSX.utils.decode_range(ws['!ref']!);
+
+      for (let R = newRange.s.r; R <= newRange.e.r; ++R) {
+        for (let C = newRange.s.c; C <= newRange.e.c; ++C) {
+          const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[cell_address]) continue;
+
+          // Title
+          if (R === 0) ws[cell_address].s = titleStyle;
+          // Headers
+          else if (R === 1) ws[cell_address].s = headerStyle;
+          // Total Row
+          else if (R === totalRowIndex) {
+            if (C === 4) ws[cell_address].s = totalLabelStyle;
+            else if (C === 5) ws[cell_address].s = totalValueStyle;
+          }
+          // Data
+          else {
+            if (C === 5) { // Cantidad Column
+              ws[cell_address].s = quantityCellStyle;
+            } else {
+              ws[cell_address].s = cellStyle;
+            }
+          }
+        }
+      }
+
+      // Column Widths
+      ws['!cols'] = [
+        { wch: 15 }, // Ref
+        { wch: 40 }, // Prod
+        { wch: 15 }, // Marca
+        { wch: 20 }, // Cat
+        { wch: 20 }, // Sub
+        { wch: 12 }, // Cant
+      ];
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Pedido");
 
-      const providerName = order.proveedor?.nombre || 'General';
-      const cleanName = providerName.replace(/[^a-zA-Z0-9]/g, '');
-      XLSX.writeFile(wb, `Pedido_${cleanName}_${order.id.slice(0, 8)}.xlsx`);
+      XLSX.writeFile(wb, `Pedido_${cleanBrand}_${order.id.slice(0, 8)}.xlsx`);
     } catch (error) {
       console.error("Error downloading excel", error);
       addToast("Error al generar el Excel.", 'error');

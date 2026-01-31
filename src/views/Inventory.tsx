@@ -18,7 +18,7 @@ import { repository } from '../services/repository';
 import CustomSelect from '../components/CustomSelect';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { Producto, Marca, Categoria } from '../types';
 
 const Inventory = () => {
@@ -71,17 +71,106 @@ const Inventory = () => {
   };
 
   const handleExport = () => {
-    const data = products.map(p => ({
-      Referencia: p.sku,
-      Nombre: p.nombre,
-      Marca: p.marca?.nombre,
-      Categoría: p.categoria?.name,
-      'Stock Actual': p.stock_actual,
-      'Stock Mínimo': p.stock_minimo,
-      'Rotación': p.is_high_rotation ? 'Alta' : 'Normal'
-    }));
+    // 1. Structure Data
+    const headers = ['REFERENCIA', 'PRODUCTO', 'MARCA', 'CATEGORÍA', 'SUBCATEGORÍA', 'STOCK ACTUAL', 'STOCK MÍNIMO', 'ROTACIÓN'];
+    const title = "INVENTARIO MAESTRO";
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    const rows = products.map(p => {
+      const subCat = categorias.find(c => c.id === p.subcategoria_id);
+      const parentCat = subCat?.parent_id
+        ? categorias.find(c => c.id === subCat.parent_id)
+        : (subCat?.parent_id === null ? subCat : undefined);
+
+      const categoryName = parentCat?.name || (subCat?.parent_id ? 'Desconocida' : subCat?.name);
+      const subCategoryName = parentCat ? subCat?.name : '';
+
+      return [
+        p.sku,
+        p.nombre,
+        p.marca?.nombre,
+        categoryName,
+        subCategoryName,
+        p.stock_actual,
+        p.stock_minimo,
+        p.is_high_rotation ? 'Alta' : 'Normal'
+      ];
+    });
+
+    const ws_data = [
+      [title],
+      headers,
+      ...rows
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+    // Merge Title
+    if (!ws['!merges']) ws['!merges'] = [];
+    ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); // Merge 8 cols
+
+    // Styles
+    const borderStyle = {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } }
+    };
+
+    const titleStyle = {
+      font: { name: "Calibri", sz: 16, bold: true, color: { rgb: "4472C4" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      fill: { fgColor: { rgb: "FFFFFF" } }
+    };
+
+    const headerStyle = {
+      fill: { fgColor: { rgb: "F8CBAD" } }, // Salmon
+      font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "000000" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: borderStyle
+    };
+
+    const cellStyle = {
+      font: { name: "Calibri", sz: 11 },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: borderStyle
+    };
+
+    // Apply Styles
+    const range = XLSX.utils.decode_range(ws['!ref']!);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cell_address]) continue;
+
+        if (R === 0) ws[cell_address].s = titleStyle;
+        else if (R === 1) ws[cell_address].s = headerStyle;
+        else {
+          // Highlight Stock Actual (Index 5)
+          if (C === 5) {
+            ws[cell_address].s = {
+              ...cellStyle,
+              fill: { fgColor: { rgb: "BDD7EE" } },
+              font: { name: "Calibri", sz: 11, bold: true }
+            };
+          } else {
+            ws[cell_address].s = cellStyle;
+          }
+        }
+      }
+    }
+
+    // Column Widths
+    ws['!cols'] = [
+      { wch: 15 }, // Ref
+      { wch: 35 }, // Prod
+      { wch: 15 }, // Marca
+      { wch: 20 }, // Cat
+      { wch: 20 }, // Sub
+      { wch: 12 }, // Stock Actual
+      { wch: 12 }, // Stock Min
+      { wch: 10 }, // Rot
+    ];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inventario");
     XLSX.writeFile(wb, "Inventario_Fluxo.xlsx");
