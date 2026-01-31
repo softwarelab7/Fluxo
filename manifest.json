@@ -1,0 +1,16 @@
+{
+    "name": "Fluxo Logística",
+    "short_name": "Fluxo",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#1e293b",
+    "theme_color": "#4f46e5",
+    "description": "Sistema de gestión logística y de almacén.",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "192x192 512x512",
+            "type": "image/svg+xml"
+        }
+    ]
+}
