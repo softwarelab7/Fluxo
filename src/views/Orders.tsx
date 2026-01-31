@@ -462,10 +462,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           // Headers
           else if (R === 1) ws[cell_address].s = headerStyle;
           // Total Row
-          else if (R === totalRowIndex) {
-            if (C === 4) ws[cell_address].s = totalLabelStyle;
-            else if (C === 5) ws[cell_address].s = totalValueStyle;
-          }
+          // Total row removed
           // Data
           else {
             if (C === 5) { // Cantidad Column
