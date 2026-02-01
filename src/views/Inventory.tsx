@@ -15,10 +15,12 @@ import {
   AlertOctagon,
   Tag,
   Truck,
-  LayoutGrid,
-  Layers,
   TrendingUp,
-  Hash
+  Hash,
+  ChevronRight,
+  ChevronDown,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import CustomSelect from '../components/CustomSelect';
@@ -26,6 +28,7 @@ import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import XLSX from 'xlsx-js-style';
 import { Producto, Marca, Categoria } from '../types';
+import { Skeleton } from '../components/Skeleton';
 
 const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +41,12 @@ const Inventory = () => {
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [selectedParentId, setSelectedParentId] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
+
+  // Layout & Filter State (Matching Orders)
+  const [orderMode, setOrderMode] = useState<'PROVIDER' | 'CATEGORY'>('CATEGORY');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedProvFilter, setSelectedProvFilter] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const { addToast } = useToast();
 
   const [newProduct, setNewProduct] = useState({
@@ -310,169 +319,316 @@ const Inventory = () => {
     setShowAddModal(true);
   };
 
-  const filtered = products.filter(p =>
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.marca?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Enhanced Filtering Logic
+  const filtered = products.filter(p => {
+    const matchesSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.marca?.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Global Search overrides context (optional, but requested behavior in Orders)
+    if (searchTerm.trim() !== '') {
+      return matchesSearch;
+    }
+
+    let matchesContext = false;
+    if (orderMode === 'PROVIDER') {
+      if (!selectedProvFilter) return true; // Show all if no provider selected? Or none? Let's show all or prompt
+      matchesContext = p.preferred_supplier_id === selectedProvFilter;
+    } else {
+      if (!selectedCategory) return true; // Show all if no category
+      const productCat = categorias.find(c => c.id === p.subcategoria_id);
+      // Logic: Match exactly, OR match if parent is selected
+      matchesContext = p.subcategoria_id === selectedCategory ||
+        p.categoria_id === selectedCategory || // Fallback if regular cat
+        productCat?.parent_id === selectedCategory;
+    }
+
+    return matchesContext;
+  });
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen space-y-4">
-        <Loader2 className="animate-spin text-blue-500" size={48} />
-        <p className="text-slate-400 animate-pulse">Cargando inventario (Cloud)...</p>
+      <div className="flex flex-col h-[calc(100vh-100px)] space-y-4 p-4 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-24 rounded-xl" />
+            <Skeleton className="h-10 w-24 rounded-xl" />
+            <Skeleton className="h-10 w-32 rounded-xl" />
+          </div>
+        </div>
+
+        <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
+          {/* Sidebar Skeleton */}
+          <div className="col-span-2 hidden lg:flex flex-col gap-4">
+            <Skeleton className="h-8 w-24" />
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+
+          {/* Grid Skeleton */}
+          <div className="col-span-12 lg:col-span-10 flex flex-col gap-4">
+            {/* Search Bar Skeleton */}
+            <Skeleton className="h-20 w-full rounded-2xl" />
+
+            {/* Product Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                <Skeleton key={i} className="h-64 rounded-2xl" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // Derived State for Context Title
+  const activeContextName = orderMode === 'PROVIDER'
+    ? (proveedores.find(p => p.id === selectedProvFilter)?.nombre || 'Todos los Proveedores')
+    : (categorias.find(c => c.id === selectedCategory)?.name || 'Todas las Categorías');
+
   return (
     <>
-      <div className="space-y-6 animate-fade-in-up">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* Header Actions (Top Bar) */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 shrink-0">
           <div>
-            <h2 className="text-3xl font-bold">Catálogo Maestro</h2>
-            <p className="text-slate-400">Administra tus productos, marcas y categorías (Supabase).</p>
+            <h2 className="text-2xl font-bold dark:text-white">Inventario</h2>
+            <p className="text-slate-400 text-sm">Gestión de catálogo y existencias</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={handleExport} className="flex items-center px-4 py-2 bg-white dark:bg-[#1e293b] rounded-full text-sm font-bold hover:bg-emerald-50 dark:hover:bg-[#1e293b] text-emerald-600 dark:text-emerald-400 shadow-sm hover:shadow-md transition-all border border-emerald-200 dark:border-emerald-500/30">
-              <Download size={16} className="mr-2" /> Exportar Excel
+            <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200 dark:border-white/5 mr-2">
+              <button
+                onClick={() => setOrderMode('PROVIDER')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${orderMode === 'PROVIDER' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                Por Proveedor
+              </button>
+              <button
+                onClick={() => setOrderMode('CATEGORY')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${orderMode === 'CATEGORY' ? 'bg-white dark:bg-violet-600 text-violet-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                Por Categoría
+              </button>
+            </div>
+
+            <button onClick={handleExport} className="flex items-center px-4 py-2 bg-white dark:bg-[#1e293b] rounded-xl text-xs font-bold hover:bg-emerald-50 dark:hover:bg-[#1e293b] text-emerald-600 dark:text-emerald-400 shadow-sm border border-emerald-200 dark:border-emerald-500/30">
+              <Download size={14} className="mr-2" /> Excel
             </button>
-            <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 text-white">
-              <Plus size={16} className="mr-2" /> Nuevo Producto
+            <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg text-white">
+              <Plus size={14} className="mr-2" /> Nuevo Producto
             </button>
           </div>
         </div>
 
-        <GlassCard noPadding>
-          <div className="p-6 border-b border-slate-200 dark:border-[#334155] flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 z-20 bg-white dark:bg-[#1e293b] rounded-t-xl shadow-md">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-              <input
-                type="text"
-                placeholder="Buscar por referencia, nombre o marca..."
-                className="w-full pl-10 pr-4 py-2.5 input-premium rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center space-x-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-              <button className="px-3 py-1.5 bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-[#334155] whitespace-nowrap text-slate-700 dark:text-slate-300">Todas las Categorías</button>
-              <button className="px-3 py-1.5 bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-[#334155] whitespace-nowrap text-slate-700 dark:text-slate-300">Alta Rotación</button>
-              <button className="px-3 py-1.5 bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-[#334155] whitespace-nowrap text-slate-700 dark:text-slate-300">Bajo Stock</button>
-              <div className="h-6 w-px bg-slate-200 dark:bg-[#334155]"></div>
-              <button className="p-2 bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-lg hover:bg-slate-200 dark:hover:bg-[#334155] text-slate-500"><Filter size={16} /></button>
-            </div>
-          </div>
+        <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-bold border-b border-slate-200 dark:border-[#334155] bg-slate-100 dark:bg-[#1e293b]">
-                  <th className="px-6 py-4 first:rounded-tl-xl">Producto</th>
-                  <th className="px-6 py-4 text-center">Categoría</th>
-                  <th className="px-6 py-4 text-center">Stock</th>
-                  <th className="px-6 py-4 text-center">Mínimo</th>
-                  <th className="px-6 py-4 text-center">Estado</th>
-                  <th className="px-6 py-4 text-right last:rounded-tr-xl">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-[#334155]">
-                {filtered.map((p, index) => {
-                  let statusColor = 'text-emerald-500 dark:text-emerald-400';
-                  let StatusIcon = CheckCircle;
-                  let statusBg = 'bg-emerald-500/10 border-emerald-500/20';
-                  let statusTitle = 'Saludable';
+          {/* LEFT SIDEBAR - FILTERS */}
+          <div className="col-span-2 hidden lg:flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar pb-20 animate-in slide-in-from-left-6 duration-500">
 
-                  if (p.stock_actual <= p.stock_minimo) {
-                    statusColor = 'text-rose-500 dark:text-rose-400';
-                    StatusIcon = AlertOctagon;
-                    statusBg = 'bg-rose-500/10 border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.1)]';
-                    statusTitle = 'Alerta: Crítico';
-                  } else if (p.stock_actual <= p.stock_minimo * 1.5) {
-                    statusColor = 'text-amber-500 dark:text-amber-400';
-                    StatusIcon = AlertTriangle;
-                    statusBg = 'bg-amber-500/10 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]';
-                    statusTitle = 'Advertencia: Bajo';
-                  }
+            {/* List */}
+            <div className="space-y-1">
+              <h3 className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-3 pl-2">
+                {orderMode === 'PROVIDER' ? 'Proveedores' : 'Categorías'}
+              </h3>
 
-                  return (
-                    <tr
-                      key={p.id}
-                      className="group hover:bg-blue-50/30 dark:hover:bg-[#334155]/20 transition-colors duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-sm animate-in fade-in slide-in-from-bottom-2"
-                      style={{ animationDelay: `${Math.min(index * 50, 500)}ms`, animationFillMode: 'both' }}
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2.5 bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 rounded-xl group-hover:scale-110 transition-transform duration-300 border border-slate-100 dark:border-white/5">
-                            <Package className="text-blue-600 dark:text-blue-400" size={24} />
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-white transition-colors">{p.nombre}</p>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-[10px] text-slate-500 font-mono tracking-wide">{p.sku}</span>
-                              <span className="text-slate-300 dark:text-slate-700">•</span>
-                              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">{p.marca?.nombre}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider">
-                          {(() => {
-                            // Logic to always show the Parent (Top-Level) Category
-                            const currentCatId = p.subcategoria_id || p.categoria?.id;
-                            const currentCat = categorias.find(c => c.id === currentCatId) || p.categoria;
+              {orderMode === 'PROVIDER' ? (
+                proveedores.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedProvFilter(p.id)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between group ${selectedProvFilter === p.id
+                      ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-600/20'
+                      : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                      }`}
+                  >
+                    <span className="truncate">{p.nombre}</span>
+                    {selectedProvFilter === p.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
+                  </button>
+                ))
+              ) : (
+                // Categories Tree
+                <div className="space-y-2">
+                  {categorias.filter(c => !c.parent_id).map(cat => {
+                    const isSelected = selectedCategory === cat.id;
+                    const hasSubs = categorias.some(sub => sub.parent_id === cat.id);
+                    const isExpanded = expandedCategories.has(cat.id);
+                    const isParentOfSelected = categorias.find(c => c.id === selectedCategory)?.parent_id === cat.id;
 
-                            if (currentCat?.parent_id) {
-                              const parent = categorias.find(c => c.id === currentCat.parent_id);
-                              if (parent) return parent.name;
-                            }
-                            return currentCat?.name || 'N/A';
-                          })()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`font-mono text-lg font-bold ${statusColor}`}>
-                          {p.stock_actual}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="px-3 py-1 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 font-mono font-bold text-sm">
-                          {p.stock_minimo}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center w-full">
-                          <div className={`p-2 rounded-lg ${statusBg} ${statusColor} border`} title={statusTitle}>
-                            <StatusIcon size={16} />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                          <button className="p-2 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 rounded-lg transition-colors active:scale-95" onClick={() => handleDeleteClick(p.id)}>
-                            <Trash2 size={16} />
-                          </button>
+                    const toggleExpand = (e: React.MouseEvent, catId: string) => {
+                      e.stopPropagation();
+                      setExpandedCategories(prev => {
+                        const next = new Set(prev);
+                        if (next.has(catId)) next.delete(catId);
+                        else next.add(catId);
+                        return next;
+                      });
+                    };
+
+                    return (
+                      <div key={cat.id}>
+                        <div className={`flex items-center w-full rounded-lg transition-all group ${(isSelected || isParentOfSelected)
+                          ? 'bg-violet-50 dark:bg-violet-600/10 border border-violet-200 dark:border-violet-600/20'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                          }`}>
                           <button
-                            onClick={() => handleEdit(p)}
-                            className="p-2 hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 rounded-lg transition-colors active:scale-95">
-                            <Edit2 size={16} />
+                            onClick={() => setSelectedCategory(cat.id)}
+                            className={`flex-1 text-left px-3 py-2.5 text-xs font-bold ${(isSelected || isParentOfSelected) ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-400'
+                              }`}
+                          >
+                            {cat.name}
                           </button>
+
+                          {hasSubs && (
+                            <button
+                              onClick={(e) => toggleExpand(e, cat.id)}
+                              className={`p-2 mr-1 rounded-md transition-colors ${(isSelected || isParentOfSelected)
+                                ? 'text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-500/20'
+                                : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
+                                }`}
+                            >
+                              {isExpanded || isParentOfSelected ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            </button>
+                          )}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {filtered.length === 0 && (
-              <div className="p-12 text-center text-slate-500">
-                <Package size={48} className="mx-auto mb-4 opacity-20" />
-                <p>No se encontraron productos que coincidan con la búsqueda.</p>
-              </div>
-            )}
+
+                        {(isExpanded || isParentOfSelected) && hasSubs && (
+                          <div className="ml-3 mt-1 pl-3 border-l-2 border-slate-100 dark:border-slate-800 space-y-1 animate-in slide-in-from-top-1 duration-200">
+                            {categorias.filter(s => s.parent_id === cat.id).map(sub => (
+                              <button
+                                key={sub.id}
+                                onClick={() => setSelectedCategory(sub.id)}
+                                className={`w-full text-left px-2 py-1.5 rounded-md text-[11px] font-medium transition-colors ${selectedCategory === sub.id
+                                  ? 'text-violet-600 bg-violet-50 dark:bg-violet-500/10'
+                                  : 'text-slate-400 hover:text-slate-600'
+                                  }`}
+                              >
+                                {sub.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </GlassCard>
+
+          {/* MAIN CONTENT (Grid) */}
+          <div className="col-span-12 lg:col-span-10 flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-500 delay-100">
+
+            {/* Header / Search */}
+            <div className="mb-4 bg-white dark:bg-[#1e293b] p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="relative group w-full md:w-96">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+                <input
+                  type="text"
+                  placeholder="Buscar en todo el inventario..."
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                <div className="text-right">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                    {activeContextName}
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    {filtered.length} productos encontrados
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Grid */}
+            <div className="overflow-y-auto pr-2 custom-scrollbar pb-20 flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {filtered.map(p => (
+                  <div key={p.id} className="bg-white dark:bg-[#1e293b] rounded-2xl p-4 border border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500/50 transition-all duration-300 group shadow-sm hover:shadow-md flex flex-col h-full relative overflow-hidden hover:-translate-y-1">
+
+                    {/* Decorative Background Icon */}
+                    <div className="absolute -right-4 -bottom-4 opacity-[0.03] dark:opacity-[0.05] group-hover:scale-125 transition-transform duration-500 pointer-events-none">
+                      <Package size={100} />
+                    </div>
+
+                    {p.is_high_rotation && (
+                      <div className="absolute top-0 right-0">
+                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-amber-400 border-r-amber-400 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm"></div>
+                      </div>
+                    )}
+
+                    {/* Top Tags */}
+                    <div className="flex flex-wrap gap-2 mb-3 items-center">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 capitalize">
+                        {p.marca?.nombre?.toLowerCase() || 'genérico'}
+                      </span>
+                      {p.subcategoria_id && (
+                        <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-100 dark:border-violet-500/20 capitalize">
+                          {categorias.find(c => c.id === p.subcategoria_id)?.name?.toLowerCase()}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 mb-4">
+                      <h4 className="font-bold text-base text-slate-800 dark:text-slate-100 leading-snug mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {p.nombre}
+                      </h4>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[10px] text-slate-400 font-mono bg-slate-50 dark:bg-slate-900 px-1.5 rounded">
+                          {p.sku}
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-1.5 h-1.5 rounded-full ${p.stock_actual <= p.stock_minimo ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                          <span className={`text-[10px] font-bold ${p.stock_actual <= p.stock_minimo ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                            {p.stock_actual <= 0 ? 'Sin Stock' : `${p.stock_actual} Unid.`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions Footer */}
+                    <div className="mt-auto border-t border-slate-100 dark:border-slate-800 pt-3 flex items-center gap-2 relative z-10">
+                      <button
+                        onClick={() => handleEdit(p)}
+                        className="flex-1 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Edit2 size={12} /> Editar
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(p.id)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {filtered.length === 0 && (
+                  <div className="col-span-full py-20 text-center">
+                    <Package size={48} className="mx-auto mb-4 text-slate-300" />
+                    <p className="text-slate-400 text-sm">No se encontraron productos.</p>
+                    {searchTerm && <p className="text-slate-400 text-xs mt-1">Intenta con otro término de búsqueda.</p>}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+
+        </div>
       </div>
 
       {/* Add Modal */}

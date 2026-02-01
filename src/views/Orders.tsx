@@ -14,7 +14,9 @@ import {
   Save,
   FileSpreadsheet,
   Edit,
-  ArrowLeft
+  ArrowLeft,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import XLSX from 'xlsx-js-style';
@@ -56,8 +58,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   // Context States
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedProvFilter, setSelectedProvFilter] = useState<string | null>(null);
+  // Track expanded categories for accordion behavior
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [showMobileCart, setShowMobileCart] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -205,6 +210,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     const matchesSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
 
+    // If searching, ignore context (Global Search)
+    if (searchTerm.trim() !== '') {
+      return matchesSearch;
+    }
+
     let matchesContext = false;
     if (orderMode === 'PROVIDER') {
       matchesContext = p.preferred_supplier_id === selectedProvFilter;
@@ -214,7 +224,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       matchesContext = p.subcategoria_id === selectedCategory || productCat?.parent_id === selectedCategory;
     }
 
-    return matchesSearch && matchesContext;
+    return matchesContext;
   });
 
   const cartItems = Object.entries(cart).map(([id, qty]) => ({
@@ -634,359 +644,371 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
   // - CREATE / EDIT VIEW -
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500 pb-10">
-      <div className="lg:col-span-8 space-y-6">
+    <div className="lg:col-span-12 flex flex-col h-[calc(100vh-140px)] animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-        {/* Header & Toggle */}
-        {/* Header & Toggle */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      {/* Header (Compact) */}
+      {!editingOrder && (
+        <div className="flex justify-between items-center mb-4 px-2">
           <div className="flex items-center space-x-3">
-            {/* Show Back button if editing OR if we navigated from List mode */}
-            {(editingOrder || initialViewMode === 'LIST') && (
-              <button onClick={cancelEdit} className="p-2 -ml-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors">
-                <ArrowLeft size={24} />
-              </button>
-            )}
-            <div>
-              <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">
-                {editingOrder ? 'Editar Pedido' : 'Nuevo Pedido'}
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
-                {editingOrder ? `Editando pedido #${editingOrder.id.slice(0, 8)}` : 'Genera pedidos por Proveedor o Categoría.'}
-              </p>
-            </div>
+            <button
+              onClick={() => setOrderMode('PROVIDER')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${orderMode === 'PROVIDER' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
+            >
+              Por Proveedor
+            </button>
+            <button
+              onClick={() => setOrderMode('CATEGORY')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${orderMode === 'CATEGORY' ? 'bg-violet-600 border-violet-600 text-white shadow-lg shadow-violet-600/20' : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
+            >
+              Por Categoría
+            </button>
           </div>
 
-          {!editingOrder && (
-            <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1.5 rounded-2xl border border-slate-200 dark:border-white/5">
-              <button
-                onClick={() => setOrderMode('PROVIDER')}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${orderMode === 'PROVIDER' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-md ring-1 ring-black/5 dark:ring-0 scale-105' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              >
-                Por Proveedor
-              </button>
-              <button
-                onClick={() => setOrderMode('CATEGORY')}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${orderMode === 'CATEGORY' ? 'bg-white dark:bg-violet-600 text-violet-600 dark:text-white shadow-md ring-1 ring-black/5 dark:ring-0 scale-105' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              >
-                Por Categoría
-              </button>
-            </div>
-          )}
-        </header>
+          {/* Search Bar - Integrated in Header */}
+          <div className="relative group w-64 md:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+            <input
+              type="text"
+              placeholder="Buscar producto..."
+              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
 
-        {/* Dynamic Selectors */}
-        <div className="space-y-4">
-          {orderMode === 'PROVIDER' && (
-            <GlassCard noPadding className="rounded-2xl border-slate-200 dark:border-[#334155] animate-in fade-in slide-in-from-left-4 duration-300 overflow-hidden">
-              <div className="p-1.5 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between px-4 py-3">
-                <div className="flex items-center space-x-3">
-                  <div className="p-1.5 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-lg border border-blue-100 dark:border-blue-500/20">
-                    <Truck size={14} className="text-blue-500" />
-                  </div>
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Seleccionar Proveedor</span>
-                </div>
-                <span className="text-[10px] text-blue-500 font-bold bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-full uppercase border border-blue-100 dark:border-blue-500/20">
-                  {selectedProvFilter ? proveedores.find(p => p.id === selectedProvFilter)?.nombre : 'Ninguno'}
-                </span>
-              </div>
-              <div className="p-4 flex flex-wrap gap-2">
-                {proveedores.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedProvFilter(p.id)}
-                    disabled={!!editingOrder && editingOrder.proveedor_id !== p.id}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border shadow-sm ${selectedProvFilter === p.id
-                      ? 'bg-blue-600 text-white border-blue-500 shadow-blue-500/30 ring-2 ring-blue-500/20'
-                      : 'bg-white dark:bg-[#0f172a] border-slate-200 dark:border-[#334155] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1e293b] hover:border-slate-300 dark:hover:border-slate-500'} 
-                      ${editingOrder && editingOrder.proveedor_id !== p.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {p.nombre.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            </GlassCard>
-          )}
+      {/* Editing Header */}
+      {editingOrder && (
+        <div className="flex items-center space-x-4 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+          <button onClick={cancelEdit} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors">
+            <ArrowLeft size={20} className="text-slate-500" />
+          </button>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Editando Pedido #{editingOrder.id.slice(0, 6)}</h2>
+            <p className="text-xs text-slate-400">Modifica las cantidades o agrega nuevos productos</p>
+          </div>
+        </div>
+      )}
 
-          {orderMode === 'CATEGORY' && (
-            <GlassCard noPadding className="rounded-2xl border-slate-200 dark:border-[#334155] animate-in fade-in slide-in-from-right-4 duration-300 overflow-hidden">
-              <div className="p-1.5 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between px-4 py-3">
-                <div className="flex items-center space-x-3">
-                  <div className="p-1.5 bg-gradient-to-br from-violet-500/10 to-violet-600/10 rounded-lg border border-violet-100 dark:border-violet-500/20">
-                    <Layers size={14} className="text-violet-500" />
-                  </div>
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Seleccionar Categoría</span>
-                </div>
-                <span className="text-[10px] text-violet-500 font-bold bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full uppercase border border-violet-100 dark:border-violet-500/20">
-                  {selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Ninguna'}
-                </span>
-              </div>
-              <div className="p-4">
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {categories.filter(c => !c.parent_id).map(cat => {
-                    const isActive = selectedCategory === cat.id || (categories.find(c => c.id === selectedCategory)?.parent_id === cat.id);
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => setSelectedCategory(cat.id)}
-                        className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all border shadow-sm ${isActive
-                          ? 'bg-violet-600 text-white border-violet-500 shadow-violet-500/30 ring-2 ring-violet-500/20'
-                          : 'bg-white dark:bg-[#0f172a] border-slate-200 dark:border-[#334155] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1e293b] hover:border-slate-300 dark:hover:border-slate-500'}`}
-                      >
-                        {cat.name}
-                      </button>
-                    )
-                  })}
-                </div>
+      <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
 
-                {/* Subcategories */}
-                {(() => {
-                  const current = categories.find(c => c.id === selectedCategory);
-                  const parentId = current?.parent_id || (current && !current.parent_id ? current.id : null);
-                  const subs = parentId ? categories.filter(c => c.parent_id === parentId) : [];
+        {/* LEFT SIDEBAR - FILTERS */}
+        <div className="col-span-2 hidden lg:flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar pb-20 animate-in slide-in-from-left-6 duration-500">
 
-                  if (subs.length > 0) {
-                    return (
-                      <div className="pt-3 border-t border-slate-100 dark:border-[#334155] animate-in fade-in slide-in-from-top-1">
-                        <div className="flex flex-wrap gap-2 items-center">
-                          <span className="text-[10px] font-bold text-slate-400 mr-2 uppercase tracking-wider">Subcategorías:</span>
+          {/* List */}
+          <div className="space-y-1">
+            <h3 className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-3 pl-2">
+              {orderMode === 'PROVIDER' ? 'Proveedores' : 'Categorías'}
+            </h3>
+
+            {orderMode === 'PROVIDER' ? (
+              proveedores.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedProvFilter(p.id)}
+                  disabled={!!editingOrder && editingOrder.proveedor_id !== p.id}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between group ${selectedProvFilter === p.id
+                    ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-600/20'
+                    : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                    } ${editingOrder && editingOrder.proveedor_id !== p.id ? 'opacity-40 cursor-not-allowed' : ''}`}
+                >
+                  <span className="truncate">{p.nombre}</span>
+                  {selectedProvFilter === p.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
+                </button>
+              ))
+            ) : (
+              // Categories Tree
+              <div className="space-y-2">
+                {categories.filter(c => !c.parent_id).map(cat => {
+                  const isSelected = selectedCategory === cat.id;
+                  const hasSubs = categories.some(sub => sub.parent_id === cat.id);
+                  const isExpanded = expandedCategories.has(cat.id);
+                  const isParentOfSelected = categories.find(c => c.id === selectedCategory)?.parent_id === cat.id;
+
+                  const toggleExpand = (e: React.MouseEvent, catId: string) => {
+                    e.stopPropagation();
+                    setExpandedCategories(prev => {
+                      const next = new Set(prev);
+                      if (next.has(catId)) next.delete(catId);
+                      else next.add(catId);
+                      return next;
+                    });
+                  };
+
+                  return (
+                    <div key={cat.id}>
+                      <div className={`flex items-center w-full rounded-lg transition-all group ${(isSelected || isParentOfSelected)
+                        ? 'bg-violet-50 dark:bg-violet-600/10 border border-violet-200 dark:border-violet-600/20'
+                        : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                        }`}>
+                        <button
+                          onClick={() => setSelectedCategory(cat.id)}
+                          className={`flex-1 text-left px-3 py-2.5 text-xs font-bold ${(isSelected || isParentOfSelected) ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-400'
+                            }`}
+                        >
+                          {cat.name}
+                        </button>
+
+                        {hasSubs && (
                           <button
-                            onClick={() => setSelectedCategory(parentId!)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${selectedCategory === parentId
-                              ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-300 border-violet-200 dark:border-violet-500/30'
-                              : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:bg-slate-100/50'}`}
+                            onClick={(e) => toggleExpand(e, cat.id)}
+                            className={`p-2 mr-1 rounded-md transition-colors ${(isSelected || isParentOfSelected)
+                              ? 'text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-500/20'
+                              : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
+                              }`}
                           >
-                            Todo
+                            {isExpanded || isParentOfSelected ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </button>
-                          {subs.map(sub => (
+                        )}
+                      </div>
+
+                      {/* Subcategories */}
+                      {(isExpanded || isParentOfSelected) && hasSubs && (
+                        <div className="ml-3 mt-1 pl-3 border-l-2 border-slate-100 dark:border-slate-800 space-y-1 animate-in slide-in-from-top-1 duration-200">
+                          {categories.filter(s => s.parent_id === cat.id).map(sub => (
                             <button
                               key={sub.id}
                               onClick={() => setSelectedCategory(sub.id)}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${selectedCategory === sub.id
-                                ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-300 border-violet-200 dark:border-violet-500/30'
-                                : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:bg-slate-100/50'}`}
+                              className={`w-full text-left px-2 py-1.5 rounded-md text-[11px] font-medium transition-colors ${selectedCategory === sub.id
+                                ? 'text-violet-600 bg-violet-50 dark:bg-violet-500/10'
+                                : 'text-slate-400 hover:text-slate-600'
+                                }`}
                             >
                               {sub.name}
                             </button>
                           ))}
                         </div>
-                      </div>
-                    )
-                  }
-                  return null;
-                })()}
-              </div>
-            </GlassCard>
-          )}
-        </div>
-
-        {/* Search */}
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={20} />
-          <input
-            type="text"
-            placeholder="Escribe SKU o nombre para buscar..."
-            className="w-full pl-12 pr-4 py-4 input-premium rounded-full focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:outline-none transition-all placeholder:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#334155] shadow-inner"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        {/* Product Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.length > 0 ? (
-            filtered.map(p => (
-              <GlassCard key={p.id} noPadding className="hover:border-blue-500/30 transition-all duration-300 group overflow-hidden">
-                <div className="p-3 flex items-start gap-4 relative">
-                  <div className="relative shrink-0">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/5 to-indigo-500/5 dark:from-blue-500/10 dark:to-indigo-500/10 flex items-center justify-center border border-blue-100 dark:border-blue-500/10 group-hover:scale-105 transition-transform duration-300">
-                      <Package size={24} className="text-blue-500/80 dark:text-blue-400" />
+                      )}
                     </div>
-                    {p.is_high_rotation && (
-                      <div className="absolute -top-1 -right-1 flex h-4 w-4">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border-2 border-white dark:border-[#1e293b]"></span>
-                      </div>
-                    )}
-                  </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
 
-                  <div className="flex-1 min-w-0 flex flex-col h-full justify-between">
-                    <div>
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-white/5 text-slate-500 uppercase tracking-wider">
-                          {p.marca?.nombre}
-                        </span>
-                        {p.stock_actual <= p.stock_minimo && (
-                          <span className="text-[10px] font-bold text-rose-500 animate-pulse flex items-center">
-                            <ArrowLeft size={10} className="mr-0.5 rotate-180" /> Crítico
+        {/* MAIN GRID */}
+        <div className="col-span-12 lg:col-span-7 flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-500 delay-100">
+
+          {/* Mobile Cart Toggle FAB */}
+          <button
+            onClick={() => setShowMobileCart(true)}
+            className="lg:hidden fixed bottom-6 right-6 z-40 bg-blue-600 text-white w-14 h-14 rounded-full shadow-xl shadow-blue-600/30 flex items-center justify-center animate-bounce"
+          >
+            <div className="relative">
+              <ShoppingCart size={24} />
+              {cartItems.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-blue-600">
+                  {cartItems.length}
+                </span>
+              )}
+            </div>
+          </button>
+
+          {/* Context Banner */}
+          <div className="mb-4 bg-white dark:bg-[#1e293b] p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg">
+                {activeContextName}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {orderMode === 'CATEGORY'
+                  ? 'Explorando catálogo'
+                  : 'Productos del proveedor'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">
+                {filtered.length} Resultados
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 pb-24 lg:pb-0">
+            {filtered.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.map(product => {
+                  const inCart = cart[product.id] || 0;
+                  return (
+                    <div key={product.id} className={`bg-white dark:bg-[#1e293b] p-4 rounded-2xl border transition-all ${inCart > 0 ? 'border-blue-500 shadow-md shadow-blue-500/10' : 'border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md'}`}>
+
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-xl">
+                          <Package size={20} className="text-slate-400" />
+                        </div>
+                        {inCart > 0 && (
+                          <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {inCart} en carrito
                           </span>
                         )}
                       </div>
-                      <h4 className="font-bold text-slate-800 dark:text-slate-100 truncate text-sm leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {p.nombre}
-                      </h4>
-                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">{p.sku}</p>
-                    </div>
 
-                    <div className="flex justify-between items-end mt-3">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${p.stock_actual <= p.stock_minimo
-                        ? 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
-                        : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-                        }`}>
-                        Stock: {p.stock_actual}
-                      </span>
+                      <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm leading-snug mb-1 line-clamp-2 min-h-[2.5em]">{product.nombre}</h4>
+                      <p className="text-xs text-slate-400 font-mono mb-3">{product.sku}</p>
 
-                      <button
-                        onClick={() => addToCart(p.id)}
-                        className="h-8 w-8 flex items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 hover:scale-110 active:scale-95 transition-all duration-300"
-                      >
-                        <Plus size={16} strokeWidth={3} />
-                      </button>
+                      <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50 dark:border-slate-800">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate max-w-[80px]">{product.marca?.nombre}</span>
+
+                        {inCart === 0 ? (
+                          <button
+                            onClick={() => addToCart(product.id)}
+                            className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-600/20 transition-colors"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        ) : (
+                          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+                            <button
+                              onClick={() => updateCartQty(product.id, inCart - 1)}
+                              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-rose-500 transition-colors"
+                            >-</button>
+                            <span className="text-xs font-black w-6 text-center">{inCart}</span>
+                            <button
+                              onClick={() => updateCartQty(product.id, inCart + 1)}
+                              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-blue-500 transition-colors"
+                            >+</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </GlassCard>
-            ))
-          ) : (
-            <div className="col-span-full py-16 text-center card-premium rounded-3xl border border-dashed border-slate-300 dark:border-[#334155]">
-              <PackageCheck size={48} className="mx-auto mb-4 opacity-10 text-slate-400" />
-              <p className="text-slate-500 font-medium">No se encontraron productos con estos filtros.</p>
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                <Search size={48} className="mb-4 opacity-20" />
+                <p>No se encontraron productos</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Sidebar Summary */}
-      <div className="lg:col-span-4">
-        <div className="sticky top-8 space-y-6">
-          <GlassCard className="border border-slate-200 dark:border-[#334155] shadow-2xl flex flex-col min-h-[500px]">
-            <div className="flex items-center justify-between mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-gradient-to-br from-blue-500/10 to-indigo-600/10 rounded-xl border border-blue-100 dark:border-blue-500/20">
-                  <ShoppingCart className="text-blue-600 dark:text-blue-400" size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">
-                    {editingOrder ? 'Editando' : 'Nuevo Pedido'}
-                  </h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Resumen de items</p>
-                </div>
-              </div>
-              <div className="text-right bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Referencias</p>
-                <p className="text-lg font-bold text-blue-600 dark:text-blue-400 leading-none">{cartItems.length}</p>
-              </div>
-            </div>
+        {/* RIGHT SIDEBAR - CART */}
+        {/* Mobile Backdrop */}
+        {showMobileCart && (
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setShowMobileCart(false)}
+          />
+        )}
 
-            <div className="bg-slate-50/50 dark:bg-[#1e293b]/30 rounded-2xl p-4 mb-6 space-y-3 border border-slate-200/60 dark:border-[#334155]">
+        <div className={`
+            col-span-3 flex-col h-full pl-2 py-2 transition-transform duration-300
+            ${showMobileCart ? 'fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-[#0f172a] shadow-2xl p-0' : 'hidden lg:flex'}
+        `}>
+
+          <div className="flex-1 flex flex-col bg-white dark:bg-[#1e293b] lg:rounded-[2rem] shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden h-full">
+
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 bg-slate-50/50 dark:bg-slate-800/20 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between">
               <div>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Contexto Actual</span>
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                  {activeContextName}
+                <div className="flex items-center justify-between mb-1 gap-2">
+                  <h3 className="font-black text-slate-800 dark:text-white text-lg tracking-tight flex items-center gap-2">
+                    <ShoppingCart size={20} className="text-blue-600 dark:text-blue-400" />
+                    Carrito
+                  </h3>
+                  <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-black px-2.5 py-1 rounded-full">
+                    {cartItems.length}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 font-medium pl-1">
+                  Resumen de tu pedido actual.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-slate-700/50">
-                <Layers size={14} className="text-violet-500/70" />
-                <span className="font-medium">
-                  {orderMode === 'CATEGORY' ? 'Filtrado por categoría' : `${includedCategoriesCount} categorías incluidas`}
-                </span>
-              </div>
+              {/* Close Button (Mobile Only) */}
+              <button
+                onClick={() => setShowMobileCart(false)}
+                className="lg:hidden p-2 text-slate-400 hover:text-slate-600 bg-slate-100 dark:bg-slate-700 rounded-full"
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2 mb-6">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
               {cartItems.map(({ product, qty }) => (
-                <div key={product.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-[#334155] group hover:border-blue-200 dark:hover:border-blue-500/30 transition-all shadow-sm">
-                  <div className="min-w-0 flex-1 mr-3">
-                    <p className="text-xs font-bold truncate text-slate-700 dark:text-slate-200">{product.nombre}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                      <span className="text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-[1px] rounded border border-slate-200 dark:border-slate-700">{product.marca?.nombre || 'Gen'}</span>
-                      {product.subcategoria_id && (
-                        <span className="text-[9px] font-medium text-slate-500 bg-slate-50 dark:bg-slate-800/50 px-1.5 py-[1px] rounded border border-slate-100 dark:border-slate-800">
-                          {categories.find(c => c.id === product.subcategoria_id)?.name}
-                        </span>
-                      )}
-                      <span className="text-[9px] text-slate-400 font-mono border-l border-slate-200 pl-1.5">{product.sku}</span>
-                    </div>
+                <div key={product.id} className="group flex flex-col bg-white dark:bg-[#0f172a] p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
+
+                  {/* Remove Button */}
+                  <button
+                    onClick={() => removeFromCart(product.id)}
+                    className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors opacity-100 lg:opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+
+                  <div className="pr-6 mb-2">
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate leading-snug">{product.nombre}</p>
+                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">{product.sku}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700/50">
-                      <button onClick={() => updateCartQty(product.id, qty - 1)} className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded transition-colors text-xs font-bold">-</button>
-                      <span className="w-8 text-center text-xs font-bold text-slate-700 dark:text-slate-200">{qty}</span>
-                      <button onClick={() => updateCartQty(product.id, qty + 1)} className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded transition-colors text-xs font-bold">+</button>
+
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{product.marca?.nombre}</span>
+                    <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-100 dark:border-slate-700">
+                      <button
+                        onClick={() => updateCartQty(product.id, qty - 1)}
+                        className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all font-bold text-lg leading-none pb-0.5"
+                      >-</button>
+                      <span className="text-sm font-black text-slate-700 dark:text-white w-6 text-center tabular-nums">{qty}</span>
+                      <button
+                        onClick={() => updateCartQty(product.id, qty + 1)}
+                        className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all font-bold text-lg leading-none pb-0.5"
+                      >+</button>
                     </div>
-                    <button onClick={() => removeFromCart(product.id)} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-colors">
-                      <Trash2 size={14} />
-                    </button>
                   </div>
                 </div>
               ))}
+
               {cartItems.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
-                  <ShoppingCart size={32} className="mb-3 text-slate-300 dark:text-slate-600" />
-                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500">Carrito Vacío</p>
-                  <p className="text-[10px] text-slate-400 text-center px-8 mt-1">Selecciona productos para comenzar</p>
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-60">
+                  <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-4">
+                    <ShoppingCart size={32} className="text-slate-300 dark:text-slate-600" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-500 dark:text-slate-400">Carrito vacío</h4>
+                  <p className="text-xs text-slate-400 mt-1 max-w-[150px]">
+                    Agrega productos desde el catálogo.
+                  </p>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleSaveOrder(true)}
-                className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all border flex items-center justify-center ${cartItems.length === 0
-                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border-slate-200 dark:border-white/5'
-                  : 'bg-white dark:bg-transparent text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-white/5 shadow-sm hover:shadow-md'
-                  }`}
-              >
-                <span>Guardar Progreso</span>
-              </button>
+            {/* Footer Actions */}
+            <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 space-y-3">
 
-              <button
-                onClick={() => handleSaveOrder(false)}
-                className={`flex-[1.5] py-3 rounded-xl text-xs flex items-center justify-center space-x-2 font-bold transition-all shadow-lg group border ${cartItems.length === 0
-                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border-slate-200 dark:border-white/5 shadow-none'
-                  : 'bg-blue-600 hover:bg-blue-500 text-white border-transparent shadow-blue-600/20 hover:shadow-blue-600/40 active:scale-[0.98]'
-                  }`}
-              >
-                <Save size={16} className={cartItems.length > 0 ? 'group-hover:scale-110 transition-transform' : ''} />
-                <span>{editingOrder ? 'Terminar Edición' : 'Crear Pedido'}</span>
-              </button>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-500">Unidades Totales</span>
+                <span className="font-black text-slate-800 dark:text-white text-base">
+                  {cartItems.reduce((acc, item) => acc + item.qty, 0)}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleSaveOrder(false)}
+                  disabled={cartItems.length === 0}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                >
+                  <Truck size={18} />
+                  {editingOrder ? 'Finalizar Edición' : 'Confirmar Pedido'}
+                </button>
+                <button
+                  onClick={() => handleSaveOrder(true)}
+                  className="w-full py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Save size={16} />
+                  Guardar Borrador
+                </button>
+              </div>
             </div>
-          </GlassCard>
+
+          </div>
         </div>
       </div>
-      <Modal
-        isOpen={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        title="Eliminar Pedido"
-        footer={
-          <>
-            <button
-              onClick={() => setDeleteModalOpen(false)}
-              className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={confirmDeleteOrder}
-              className="px-4 py-2 text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-lg shadow-lg shadow-rose-500/30 transition-all"
-            >
-              Confirmar Eliminar
-            </button>
-          </>
-        }
-      >
-        <p>
-          ¿Estás seguro de que deseas eliminar este pedido?
-          <br />
-          <span className="text-sm text-slate-400 mt-2 block">
-            Proveedor: <strong className="text-slate-600 dark:text-slate-200">{orderToDelete?.proveedor?.nombre}</strong>
-          </span>
-        </p>
-      </Modal>
-    </div >
+    </div>
+
   );
 };
 
 export default Orders;
-

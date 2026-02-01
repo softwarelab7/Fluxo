@@ -7,6 +7,7 @@ import Orders from './views/Orders';
 import Audit from './views/Audit';
 import Suppliers from './views/Suppliers';
 import Settings from './views/Settings';
+import Classification from './views/Classification';
 import { ToastProvider } from './components/Toast';
 
 import { supabase } from './services/supabase';
@@ -74,8 +75,10 @@ const App: React.FC = () => {
         return <Audit initialViewMode="MISSING" />;
       case 'suppliers':
         return <Suppliers />;
+      case 'classification':
+        return <Classification />;
       case 'settings':
-        return <Settings />;
+        return <Settings userRole={userRole} />;
       case 'users':
         return <Users />;
       default:

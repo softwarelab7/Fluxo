@@ -19,6 +19,7 @@ export interface Proveedor {
   contacto?: string;
   email?: string;
   telefono?: string;
+  is_active?: boolean;
 }
 
 export interface Producto {

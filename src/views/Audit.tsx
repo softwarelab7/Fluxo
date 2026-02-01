@@ -209,6 +209,26 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     );
   };
 
+  const handleDeleteForever = (pedido: Pedido) => {
+    openConfirmModal(
+      'Eliminar Definitivamente',
+      '¿Estás seguro de eliminar este registro permanentemente? Esta acción es irreversible.',
+      async () => {
+        try {
+          setIsProcessing(true);
+          await repository.deletePedido(pedido.id);
+          addToast("Registro eliminado permanentemente.", 'success');
+          await loadPedidos();
+        } catch (error) {
+          console.error("Error deleting order:", error);
+          addToast("Error al eliminar el registro.", 'error');
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+    );
+  };
+
   const handleReceiveAll = () => {
     openConfirmModal(
       'Recibir Todo Correcto',
@@ -430,7 +450,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
   if (!activePedido) {
     return (
-      <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold">Auditoría de Recepción</h2>
@@ -639,6 +659,22 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       </div>
                     </div>
                   )}
+                  {p.estado === 'Cancelado' && (
+                    <div className="p-4 bg-rose-50 dark:bg-rose-900/10 border-t border-rose-100 dark:border-rose-900/20">
+                      <div className="flex justify-between items-center px-2">
+                        <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                          Eliminado
+                        </span>
+                        <button
+                          onClick={() => handleDeleteForever(p)}
+                          className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold shadow-sm flex items-center gap-2 transition-all hover:shadow-rose-600/20"
+                        >
+                          <Trash2 size={14} />
+                          Eliminar definitivamente
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </GlassCard>
               ))
             )
@@ -678,7 +714,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     );
   }
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500 pb-20">
+    <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-700 pb-20">
       {/* Active Header */}
       <GlassCard className="sticky top-4 z-40 border-slate-100 dark:border-[#334155] shadow-xl dark:shadow-2xl bg-white dark:bg-[#1e293b]">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">

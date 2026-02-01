@@ -18,7 +18,8 @@ import {
   ChevronRight,
   Bell,
   Users as UsersIcon,
-  LogOut
+  LogOut,
+  Bookmark
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -125,13 +126,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
     { id: 'inventory', label: 'Inventario', icon: Package },
     { id: 'orders', label: 'Nuevo Pedido', icon: ShoppingCart },
     { id: 'pending-orders', label: 'Pendientes', icon: ClipboardCheck },
-    { id: 'suppliers', label: 'Proveedores', icon: Truck },
+    { id: 'classification', label: 'Clasificación', icon: Bookmark },
     { id: 'audit', label: 'Auditoría', icon: Layers },
   ];
 
-  if (userRole === 'admin') {
-    menuItems.push({ id: 'users', label: 'Usuarios', icon: UsersIcon });
-  }
+  // Users and Suppliers moved to Settings
+
 
   const pageTitle = menuItems.find(item => item.id === activeView)?.label || 'Fluxo';
 

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import Modal from '../components/Modal';
+import { Skeleton } from '../components/Skeleton';
 
 interface DashboardProps {
   onNavigate: (view: string) => void;
@@ -142,14 +143,44 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   if (loading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <p className="text-slate-400 animate-pulse">Cargando métricas...</p>
+      <div className="space-y-8 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32 rounded-full" />
+            <Skeleton className="h-10 w-32 rounded-full" />
+          </div>
+        </div>
+
+        {/* Bento Grid Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+
+        {/* Main Content Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="lg:col-span-2">
+            <Skeleton className="h-96" />
+          </div>
+          <div>
+            <Skeleton className="h-96" />
+          </div>
+        </div>
+
+        {/* Bottom Chart Skeleton */}
+        <Skeleton className="h-52" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Resumen Operativo</h2>
@@ -167,7 +198,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </header>
 
       {/* Bento Grid Indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in zoom-in-95 duration-500 delay-100">
         <StatCard
           title="Stock Crítico"
           value={stats.criticalCount}
@@ -190,7 +221,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 animate-in fade-in zoom-in-95 duration-500 delay-200">
         {/* Critical Items List */}
         <div className="lg:col-span-2">
           <GlassCard className="h-full">
@@ -278,7 +309,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       {/* Stock Status Bar Chart */}
-      <div className="h-52">
+      <div className="h-52 animate-in fade-in zoom-in-95 duration-500 delay-300">
         <GlassCard className="h-full p-4">
           <h3 className="text-sm font-bold mb-2 text-slate-900 dark:text-slate-100">Estado del Inventario</h3>
           <div className="w-full h-36">
