@@ -899,9 +899,14 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 <div key={product.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-[#334155] group hover:border-blue-200 dark:hover:border-blue-500/30 transition-all shadow-sm">
                   <div className="min-w-0 flex-1 mr-3">
                     <p className="text-xs font-bold truncate text-slate-700 dark:text-slate-200">{product.nombre}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                       <span className="text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-[1px] rounded border border-slate-200 dark:border-slate-700">{product.marca?.nombre || 'Gen'}</span>
-                      <span className="text-[9px] text-slate-400 font-mono">{product.sku}</span>
+                      {product.subcategoria_id && (
+                        <span className="text-[9px] font-medium text-slate-500 bg-slate-50 dark:bg-slate-800/50 px-1.5 py-[1px] rounded border border-slate-100 dark:border-slate-800">
+                          {categories.find(c => c.id === product.subcategoria_id)?.name}
+                        </span>
+                      )}
+                      <span className="text-[9px] text-slate-400 font-mono border-l border-slate-200 pl-1.5">{product.sku}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
