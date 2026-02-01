@@ -374,21 +374,29 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         ];
       });
 
+      // Calculate Totals
+      const totalQuantity = items.reduce((sum, item) => sum + item.cantidad_pedida, 0);
+
       const ws_data = [
         [title],
         headers,
-        ...rows
+        ...rows,
+        ['', '', '', '', 'TOTAL', totalQuantity] // Totals Row
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(ws_data);
-
-
 
       // Merge Title Cell
       if (!ws['!merges']) ws['!merges'] = [];
       ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } });
 
+      // Configure Freeze Panes (Freeze top 2 rows)
+      const splitRow = 2;
+      ws['!freeze'] = { xSplit: 0, ySplit: splitRow, topLeftCell: `A${splitRow + 1}`, activePane: 'bottomLeft', state: 'frozen' };
 
+      // Configure AutoFilter (Applies to headers and data, excluding totals)
+      const range = XLSX.utils.decode_range(ws['!ref']!);
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 1, c: 0 }, e: { r: range.e.r - 1, c: 5 } }) };
 
       // Styles
       const borderStyle = {
@@ -428,32 +436,21 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         fill: { fgColor: { rgb: "E2E8F0" } }, // Light Slate
         font: { name: "Calibri", sz: 12, bold: true },
         alignment: { horizontal: "right", vertical: "center" },
-        border: {
-          top: { style: "double", color: { rgb: "000000" } },
-          bottom: { style: "double", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } },
-          right: { style: "thin", color: { rgb: "000000" } }
-        }
+        border: borderStyle
       };
 
       const totalValueStyle = {
         fill: { fgColor: { rgb: "BDD7EE" } }, // Blue like qty
         font: { name: "Calibri", sz: 12, bold: true },
         alignment: { horizontal: "center", vertical: "center" },
-        border: {
-          top: { style: "double", color: { rgb: "000000" } },
-          bottom: { style: "double", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } },
-          right: { style: "thin", color: { rgb: "000000" } }
-        }
+        border: borderStyle
       };
 
       // Apply Styles
-      // Refresh range after adding total row
-      const newRange = XLSX.utils.decode_range(ws['!ref']!);
+      const finalRange = XLSX.utils.decode_range(ws['!ref']!);
 
-      for (let R = newRange.s.r; R <= newRange.e.r; ++R) {
-        for (let C = newRange.s.c; C <= newRange.e.c; ++C) {
+      for (let R = finalRange.s.r; R <= finalRange.e.r; ++R) {
+        for (let C = finalRange.s.c; C <= finalRange.e.c; ++C) {
           const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
           if (!ws[cell_address]) continue;
 
@@ -461,8 +458,12 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           if (R === 0) ws[cell_address].s = titleStyle;
           // Headers
           else if (R === 1) ws[cell_address].s = headerStyle;
-          // Total Row
-          // Total row removed
+          // Totals Row
+          else if (R === finalRange.e.r) {
+            if (C === 4) ws[cell_address].s = totalLabelStyle;
+            else if (C === 5) ws[cell_address].s = totalValueStyle;
+            else ws[cell_address].s = cellStyle;
+          }
           // Data
           else {
             if (C === 5) { // Cantidad Column

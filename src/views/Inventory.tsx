@@ -12,7 +12,13 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle,
-  AlertOctagon
+  AlertOctagon,
+  Tag,
+  Truck,
+  LayoutGrid,
+  Layers,
+  TrendingUp,
+  Hash
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import CustomSelect from '../components/CustomSelect';
@@ -96,10 +102,15 @@ const Inventory = () => {
       ];
     });
 
+    // Calculate Totals
+    const totalStock = products.reduce((sum, p) => sum + p.stock_actual, 0);
+    const totalMinStock = products.reduce((sum, p) => sum + p.stock_minimo, 0);
+
     const ws_data = [
       [title],
       headers,
-      ...rows
+      ...rows,
+      ['', '', '', '', 'TOTALES', totalStock, totalMinStock, ''] // Totals Row
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
@@ -107,6 +118,15 @@ const Inventory = () => {
     // Merge Title
     if (!ws['!merges']) ws['!merges'] = [];
     ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); // Merge 8 cols
+
+    // Configure Freeze Panes (Freeze top 2 rows)
+    const splitRow = 2; // Rows 0 and 1 are frozen
+    ws['!freeze'] = { xSplit: 0, ySplit: splitRow, topLeftCell: `A${splitRow + 1}`, activePane: 'bottomLeft', state: 'frozen' };
+
+    // Configure AutoFilter (Applies to headers and data)
+    // Range starts at A2 (Row index 1) to H(lastRow)
+    const range = XLSX.utils.decode_range(ws['!ref']!);
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 1, c: 0 }, e: { r: range.e.r - 1, c: 7 } }) }; // Exclude total row from filter if desired, or include. Usually exclude totals.
 
     // Styles
     const borderStyle = {
@@ -135,15 +155,37 @@ const Inventory = () => {
       border: borderStyle
     };
 
+    const totalLabelStyle = {
+      font: { name: "Calibri", sz: 11, bold: true },
+      alignment: { horizontal: "right", vertical: "center" },
+      fill: { fgColor: { rgb: "E2EFDA" } }, // Light Green match? or just bold
+      border: borderStyle
+    };
+
+    const totalValueStyle = {
+      font: { name: "Calibri", sz: 11, bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      fill: { fgColor: { rgb: "E2EFDA" } },
+      border: borderStyle
+    };
+
     // Apply Styles
-    const range = XLSX.utils.decode_range(ws['!ref']!);
-    for (let R = range.s.r; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
+    // const range = XLSX.utils.decode_range(ws['!ref']!); // Range already decoded above, but recalculate if ref changed (it didn't really, but be safe)
+    const finalRange = XLSX.utils.decode_range(ws['!ref']!);
+
+    for (let R = finalRange.s.r; R <= finalRange.e.r; ++R) {
+      for (let C = finalRange.s.c; C <= finalRange.e.c; ++C) {
         const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[cell_address]) continue;
 
         if (R === 0) ws[cell_address].s = titleStyle;
         else if (R === 1) ws[cell_address].s = headerStyle;
+        else if (R === finalRange.e.r) {
+          // Totals Row
+          if (C === 4) ws[cell_address].s = totalLabelStyle;
+          else if (C === 5 || C === 6) ws[cell_address].s = totalValueStyle;
+          else ws[cell_address].s = totalValueStyle; // Apply generic total style to empty cells in total row too? Or just keep empty.
+        }
         else {
           // Highlight Stock Actual (Index 5)
           if (C === 5) {
@@ -436,110 +478,120 @@ const Inventory = () => {
       {/* Add Modal */}
       {
         showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 animate-in fade-in duration-200">
-            <GlassCard hoverEffect={false} className="w-full max-w-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 shadow-2xl shadow-blue-500/20 border-slate-200 dark:border-[#334155] bg-white dark:bg-[#1e293b]">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">{editingProduct ? 'Editar Producto' : 'Nuevo Producto (Nube)'}</h3>
-                <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-500 dark:text-white">
-                  <X size={20} />
-                </button>
-              </div>
-              <form onSubmit={handleSubmit} className="space-y-2">
-                <div className="space-y-2">
-                  {/* Section: Identificación */}
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] items-center flex uppercase tracking-widest text-blue-400 font-bold border-b border-blue-500/10 pb-1 mb-1">
-                      Identificación
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-bold text-slate-400">Referencia</label>
-                        <input required type="text" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-white" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-bold text-slate-400">Vehículos</label>
-                        <input required type="text" value={newProduct.nombre} onChange={e => setNewProduct({ ...newProduct, nombre: e.target.value })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-white" />
-                      </div>
-                    </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <GlassCard hoverEffect={false} className="w-full max-w-5xl shadow-2xl shadow-blue-500/20 border-blue-100 dark:border-blue-900/30 bg-white dark:bg-[#1e293b] flex flex-col">
+              {/* Header */}
+              <div className="flex justify-between items-start px-8 py-6 border-b border-slate-100 dark:border-white/5 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 shrink-0 relative overflow-hidden">
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${editingProduct ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'}`}>
+                    {editingProduct ? <Edit2 size={24} /> : <Package size={24} />}
                   </div>
-
-                  {/* Section: Clasificación */}
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] uppercase tracking-widest text-blue-400 font-bold border-b border-blue-500/10 pb-1 mb-1">
-                      Clasificación
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-bold text-slate-400">Marca</label>
-                        <CustomSelect
-                          value={newProduct.marca_id}
-                          onChange={(val) => setNewProduct({ ...newProduct, marca_id: val })}
-                          options={marcas.map(m => ({ value: m.id, label: m.nombre }))}
-                          placeholder="Seleccionar..."
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-bold text-slate-400">Proveedor</label>
-                        <CustomSelect
-                          value={newProduct.preferred_supplier_id}
-                          onChange={(val) => setNewProduct({ ...newProduct, preferred_supplier_id: val })}
-                          options={[
-                            { value: '', label: 'Opcional...' },
-                            ...proveedores.map(p => ({ value: p.id, label: p.nombre }))
-                          ]}
-                          placeholder="Opcional..."
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-bold text-slate-400">Categoría</label>
-                        <CustomSelect
-                          value={selectedParentId}
-                          onChange={(val) => {
-                            setSelectedParentId(val);
-                            setNewProduct({ ...newProduct, subcategoria_id: '' });
-                          }}
-                          options={categorias.filter(c => !c.parent_id).map(c => ({ value: c.id, label: c.name }))}
-                          placeholder="Seleccionar..."
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-bold text-slate-400">Subcategoría</label>
-                        <CustomSelect
-                          value={newProduct.subcategoria_id}
-                          onChange={(val) => setNewProduct({ ...newProduct, subcategoria_id: val })}
-                          options={categorias.filter(c => c.parent_id === selectedParentId).map(c => ({ value: c.id, label: c.name }))}
-                          placeholder="Seleccionar..."
-                          disabled={!selectedParentId}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Section: Inventario */}
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] uppercase tracking-widest text-blue-400 font-bold border-b border-blue-500/10 pb-1 mb-1">
-                      Control de Stock
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-bold text-slate-400">Stock Inicial</label>
-                        <input type="number" value={newProduct.stock_actual} onChange={e => setNewProduct({ ...newProduct, stock_actual: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-white" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] font-bold text-slate-400">Stock Mínimo</label>
-                        <input type="number" value={newProduct.stock_minimo} onChange={e => setNewProduct({ ...newProduct, stock_minimo: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-white" />
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2 pt-2">
-                      <input type="checkbox" id="rotation" checked={newProduct.is_high_rotation} onChange={e => setNewProduct({ ...newProduct, is_high_rotation: e.target.checked })} className="accent-blue-500 scale-125" />
-                      <label htmlFor="rotation" className="text-sm font-medium text-slate-600 dark:text-slate-300">Producto de Alta Rotación</label>
-                    </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">
+                      {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                      {editingProduct ? 'Modifique los datos del inventario' : 'Complete la ficha técnica del ítem'}
+                    </p>
                   </div>
                 </div>
-                <button type="submit" className="w-full py-2 mt-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all text-sm text-white">
-                  {editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
+
+                {/* Decorative background circle */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="relative z-10 p-2 hover:bg-white/80 dark:hover:bg-white/10 rounded-xl transition-all text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:shadow-sm"
+                >
+                  <X size={22} />
                 </button>
-              </form>
+              </div>
+
+              {/* Form Body - Taller Layout */}
+              <div className="p-10">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-10">
+
+                  {/* Row 1: Basics & Classification */}
+                  <div className="grid grid-cols-12 gap-6 items-end">
+                    <div className="col-span-6 md:col-span-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">SKU</label>
+                      <input required type="text" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} className="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-lg px-3 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 dark:text-white" placeholder="7668" />
+                    </div>
+                    <div className="col-span-6 md:col-span-4">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Producto</label>
+                      <input required type="text" value={newProduct.nombre} onChange={e => setNewProduct({ ...newProduct, nombre: e.target.value })} className="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-lg px-3 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 dark:text-white" placeholder="Nombre completo..." />
+                    </div>
+                    <div className="col-span-6 md:col-span-3">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Marca</label>
+                      <CustomSelect
+                        value={newProduct.marca_id}
+                        onChange={(val) => setNewProduct({ ...newProduct, marca_id: val })}
+                        options={marcas.map(m => ({ value: m.id, label: m.nombre }))}
+                        placeholder="Marca..."
+                        className="text-sm h-11"
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-3">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Proveedor</label>
+                      <CustomSelect
+                        value={newProduct.preferred_supplier_id}
+                        onChange={(val) => setNewProduct({ ...newProduct, preferred_supplier_id: val })}
+                        options={proveedores.map(p => ({ value: p.id, label: p.nombre }))}
+                        placeholder="Proveedor..."
+                        className="text-sm h-11"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 2: Categories, Stock & Action */}
+                  <div className="grid grid-cols-12 gap-6 items-end">
+                    <div className="col-span-6 md:col-span-3">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Categoría</label>
+                      <CustomSelect
+                        value={selectedParentId}
+                        onChange={(val) => {
+                          setSelectedParentId(val);
+                          setNewProduct({ ...newProduct, subcategoria_id: '' });
+                        }}
+                        options={categorias.filter(c => !c.parent_id).map(c => ({ value: c.id, label: c.name }))}
+                        placeholder="Categoría..."
+                        className="text-sm h-11"
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-3">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Subcategoría</label>
+                      <CustomSelect
+                        value={newProduct.subcategoria_id}
+                        onChange={(val) => setNewProduct({ ...newProduct, subcategoria_id: val })}
+                        options={categorias.filter(c => c.parent_id === selectedParentId).map(c => ({ value: c.id, label: c.name }))}
+                        placeholder="Sub..."
+                        disabled={!selectedParentId}
+                        className="text-sm h-11"
+                      />
+                    </div>
+                    <div className="col-span-3 md:col-span-1">
+                      <label className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 block">Inicial</label>
+                      <input type="number" value={newProduct.stock_actual} onChange={e => setNewProduct({ ...newProduct, stock_actual: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-lg px-2 h-11 text-sm font-bold text-center focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-700 dark:text-white" />
+                    </div>
+                    <div className="col-span-3 md:col-span-1">
+                      <label className="text-xs font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider mb-2 block">Mínimo</label>
+                      <input type="number" value={newProduct.stock_minimo} onChange={e => setNewProduct({ ...newProduct, stock_minimo: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-lg px-2 h-11 text-sm font-bold text-center focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-slate-700 dark:text-white" />
+                    </div>
+
+                    <div className="col-span-6 md:col-span-4 flex items-center gap-4 pl-4 border-l border-slate-100 dark:border-white/5 h-11">
+                      <label className="flex items-center space-x-2 cursor-pointer group shrink-0">
+                        <input type="checkbox" checked={newProduct.is_high_rotation} onChange={e => setNewProduct({ ...newProduct, is_high_rotation: e.target.checked })} className="hidden peer" />
+                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600 relative transition-colors"></div>
+                        <span className="text-xs font-bold text-slate-500 group-hover:text-blue-600 transition-colors">Alta Rotación</span>
+                      </label>
+                      <button type="submit" className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 transition-all text-base flex items-center justify-center gap-2">
+                        <Plus size={18} />
+                        <span>Crear</span>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
             </GlassCard>
           </div>
         )

@@ -234,7 +234,7 @@ const Settings = () => {
 
   return (
     <>
-      <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-top-4 duration-500 pb-20">
+      <div className="max-w-7xl mx-auto space-y-6 animate-in slide-in-from-top-4 duration-500 pb-20">
         <header>
           <h2 className="text-3xl font-bold">Configuración del Sistema</h2>
           <p className="text-slate-400">Gestiona los datos maestros (Nube) y parámetros de la plataforma.</p>
@@ -242,8 +242,8 @@ const Settings = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Categories Section */}
-          <GlassCard className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
+          <GlassCard className="h-[520px] flex flex-col">
+            <div className="flex items-center justify-between mb-2 shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
                   <Layers className="text-blue-400" size={20} />
@@ -259,7 +259,7 @@ const Settings = () => {
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2">
               {categorias.filter(c => !c.parent_id).length === 0 && (
                 <p className="text-center text-slate-500 text-sm py-10">No hay categorías. Crea una arriba.</p>
               )}
@@ -293,8 +293,8 @@ const Settings = () => {
           </GlassCard>
 
           {/* Brands Section */}
-          <GlassCard className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
+          <GlassCard className="h-[520px] flex flex-col">
+            <div className="flex items-center justify-between mb-2 shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-violet-500/20 rounded-lg">
                   <Bookmark className="text-violet-400" size={20} />
@@ -309,20 +309,22 @@ const Settings = () => {
                 <Plus size={18} />
               </button>
             </div>
-            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Haz clic en editar para renombrar o eliminar.</p>
-            <div className="flex flex-wrap gap-3">
-              {marcas.length === 0 && (
-                <p className="text-slate-500 text-sm py-4">No hay marcas registradas.</p>
-              )}
-              {marcas.map(m => (
-                <EditableItem
-                  key={m.id}
-                  initialValue={m.nombre}
-                  onSave={(newName) => handleUpdateMarca(m.id, newName)}
-                  onDelete={() => handleDeleteMarca(m.id)}
-                  type="brand"
-                />
-              ))}
+            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2 shrink-0">Haz clic en editar para renombrar o eliminar.</p>
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+              <div className="flex flex-wrap gap-3">
+                {marcas.length === 0 && (
+                  <p className="text-slate-500 text-sm py-4">No hay marcas registradas.</p>
+                )}
+                {marcas.map(m => (
+                  <EditableItem
+                    key={m.id}
+                    initialValue={m.nombre}
+                    onSave={(newName) => handleUpdateMarca(m.id, newName)}
+                    onDelete={() => handleDeleteMarca(m.id)}
+                    type="brand"
+                  />
+                ))}
+              </div>
             </div>
           </GlassCard>
 
@@ -378,48 +380,50 @@ const Settings = () => {
           </GlassCard>
 
 
-        </div>
+        </div >
 
         <div className="pt-10 pb-6 text-center text-slate-400 dark:text-slate-600 text-[10px] uppercase tracking-widest font-bold">
           Fluxo Premium Inventory Management • v2.0 Cloud
         </div>
-      </div>
+      </div >
 
       {/* Input Modal */}
-      {modalConfig && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30">
-          <GlassCard hoverEffect={false} className="w-full max-w-sm animate-in zoom-in-95 duration-200 bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white">
-                {modalConfig.type === 'category'
-                  ? (modalConfig.parentId ? 'Nueva Subcategoría' : 'Nueva Categoría')
-                  : 'Nueva Marca'}
-              </h3>
-              <button onClick={() => setModalConfig(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-500 dark:text-white">
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleConfirmAdd} className="space-y-4">
-              <div className="space-y-1">
-                <input
-                  autoFocus
-                  required
-                  placeholder="Nombre..."
-                  value={newValue}
-                  onChange={e => setNewValue(e.target.value)}
-                  className="w-full input-premium rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all"
-                />
+      {
+        modalConfig && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30">
+            <GlassCard hoverEffect={false} className="w-full max-w-sm animate-in zoom-in-95 duration-200 bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155]">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+                  {modalConfig.type === 'category'
+                    ? (modalConfig.parentId ? 'Nueva Subcategoría' : 'Nueva Categoría')
+                    : 'Nueva Marca'}
+                </h3>
+                <button onClick={() => setModalConfig(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-500 dark:text-white">
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                type="submit"
-                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all"
-              >
-                Crear
-              </button>
-            </form>
-          </GlassCard>
-        </div>
-      )}
+              <form onSubmit={handleConfirmAdd} className="space-y-4">
+                <div className="space-y-1">
+                  <input
+                    autoFocus
+                    required
+                    placeholder="Nombre..."
+                    value={newValue}
+                    onChange={e => setNewValue(e.target.value)}
+                    className="w-full input-premium rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all"
+                >
+                  Crear
+                </button>
+              </form>
+            </GlassCard>
+          </div>
+        )
+      }
     </>
   );
 };
