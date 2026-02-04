@@ -64,6 +64,20 @@ const Inventory = () => {
     loadData();
   }, []);
 
+  // Effect: Auto-expand parent category when a subcategory is selected
+  useEffect(() => {
+    if (selectedCategory && categorias.length > 0) {
+      const cat = categorias.find(c => c.id === selectedCategory);
+      if (cat && cat.parent_id) {
+        setExpandedCategories(prev => {
+          const next = new Set(prev);
+          next.add(cat.parent_id);
+          return next;
+        });
+      }
+    }
+  }, [selectedCategory, categorias]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -478,7 +492,14 @@ const Inventory = () => {
                           : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
                           }`}>
                           <button
-                            onClick={() => setSelectedCategory(cat.id)}
+                            onClick={(e) => {
+                              setSelectedCategory(cat.id);
+                              if (hasSubs) {
+                                if (isExpanded || !isParentOfSelected) {
+                                  toggleExpand(e, cat.id);
+                                }
+                              }
+                            }}
                             className={`flex-1 text-left px-3 py-2.5 text-xs font-bold ${(isSelected || isParentOfSelected) ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-400'
                               }`}
                           >
@@ -498,7 +519,7 @@ const Inventory = () => {
                           )}
                         </div>
 
-                        {(isExpanded || isParentOfSelected) && hasSubs && (
+                        {isExpanded && hasSubs && (
                           <div className="ml-3 mt-1 pl-3 border-l-2 border-slate-100 dark:border-slate-800 space-y-1 animate-in slide-in-from-top-1 duration-200">
                             {categorias.filter(s => s.parent_id === cat.id).map(sub => (
                               <button

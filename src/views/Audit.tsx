@@ -22,7 +22,8 @@ import {
   Lock,
   Unlock,
   Trash2,
-  Replace
+  Replace,
+  PlusCircle
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import { Pedido, PedidoItem, EstadoItem, Producto } from '../types';
@@ -45,6 +46,14 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
   const [missingItems, setMissingItems] = useState<{ item: PedidoItem, pedido: Pedido }[]>([]);
   const [viewMode, setViewMode] = useState<'PENDING' | 'HISTORY' | 'MISSING' | 'TRASH'>(initialViewMode);
   const [isEditingHistory, setIsEditingHistory] = useState(false);
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+
+  // Add Item State
+  const [addItemModalOpen, setAddItemModalOpen] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [allProducts, setAllProducts] = useState<Producto[]>([]);
+  const [isSearchingProducts, setIsSearchingProducts] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -153,6 +162,8 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
       setIsProcessing(true);
       setActivePedido(p);
       setIsEditingHistory(false);
+      setIsEditingOrder(false);
+      setItemsToDelete([]);
       const pedidoItems = await repository.getPedidoItems(p.id);
       setItems(pedidoItems);
 
@@ -176,8 +187,19 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     }
   };
 
-  const updateAuditValue = (itemId: string, qty: number) => {
-    const requested = items.find(i => i.id === itemId)?.cantidad_pedida || 0;
+  const updateAuditValue = (itemId: string, val: number, field: 'qty' | 'expected' = 'qty') => {
+    let requested = items.find(i => i.id === itemId)?.cantidad_pedida || 0;
+
+    // If editing expected, update the 'requested' used for calculation
+    if (field === 'expected') {
+      requested = val;
+      // Also update local item state for immediate feedback
+      setItems(prev => prev.map(i => i.id === itemId ? { ...i, cantidad_pedida: val } : i));
+    }
+
+    const currentAudit = auditedValues[itemId];
+    const qty = field === 'qty' ? val : (currentAudit?.qty || 0);
+
     let status: EstadoItem = 'Completo';
     if (qty === 0) status = 'No llegó';
     else if (qty < requested) status = 'Incompleto';
@@ -396,6 +418,113 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
   };
 
 
+
+  const handleSaveOrderChanges = async () => {
+    if (!activePedido) return;
+    setIsProcessing(true);
+    try {
+      // 1. Process Deletions
+      if (itemsToDelete.length > 0) {
+        await Promise.all(itemsToDelete.map(id => repository.deletePedidoItem(id)));
+      }
+
+      // 2. Process Updates (Expected Qty) & New Items
+      // We filter out deleted items from the update list
+      const validItems = items.filter(i => !itemsToDelete.includes(i.id));
+
+      const newItemsToInsert = validItems.filter(i => i.id.startsWith('NEW_'));
+      const existingItemsToUpdate = validItems.filter(i => !i.id.startsWith('NEW_'));
+
+      // Update existing
+      await Promise.all(existingItemsToUpdate.map(item =>
+        repository.updatePedidoItem(item.id, { cantidad_pedida: item.cantidad_pedida })
+      ));
+
+      // Insert new
+      if (newItemsToInsert.length > 0) {
+        await repository.addPedidoItems(newItemsToInsert.map(i => ({
+          pedido_id: activePedido.id,
+          producto_id: i.producto_id,
+          cantidad_pedida: i.cantidad_pedida,
+          cantidad_recibida: 0,
+          estado_item: 'No llegó'
+        })));
+      }
+
+      addToast('Orden actualizada correctamente.', 'success');
+      setIsEditingOrder(false);
+      setItemsToDelete([]);
+
+      addToast('Orden actualizada correctamente.', 'success');
+      setIsEditingOrder(false);
+      setItemsToDelete([]);
+
+      // Reload items to ensure sync
+      const updatedItems = await repository.getPedidoItems(activePedido.id);
+      setItems(updatedItems);
+
+      // Re-initialize audit values based on new expected quantities
+      const newAudit: Record<string, { qty: number, status: EstadoItem }> = {};
+      updatedItems.forEach(item => {
+        const qty = 0;
+        const prev = auditedValues[item.id]?.qty || 0;
+        const status = prev === 0 ? 'No llegó' : (prev < item.cantidad_pedida ? 'Incompleto' : 'Completo');
+        newAudit[item.id] = { qty: prev, status };
+      });
+      setAuditedValues(newAudit);
+
+    } catch (error) {
+      console.error("Error updating order:", error);
+      addToast("Error al actualizar la orden.", 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleOpenAddItem = async () => {
+    setAddItemModalOpen(true);
+    if (allProducts.length === 0) {
+      setIsSearchingProducts(true);
+      try {
+        const prods = await repository.getProductos();
+        setAllProducts(prods);
+      } catch (error) {
+        console.error("Error loading products", error);
+        addToast("Error al cargar productos", 'error');
+      } finally {
+        setIsSearchingProducts(false);
+      }
+    }
+  };
+
+  const handleAddNewItem = (product: Producto) => {
+    // Check if already exists in items
+    if (items.some(i => i.producto_id === product.id)) {
+      addToast("Este producto ya está en la orden.", 'error');
+      return;
+    }
+
+    const newItem: PedidoItem = {
+      id: `NEW_${Date.now()}`, // Temp ID
+      pedido_id: activePedido!.id,
+      producto_id: product.id,
+      cantidad_pedida: 1, // Default 1
+      cantidad_recibida: 0,
+      estado_item: 'No llegó',
+      producto: product
+    };
+
+    setItems(prev => [newItem, ...prev]);
+    // Initialize audit value for new item
+    setAuditedValues(prev => ({
+      ...prev,
+      [newItem.id]: { qty: 0, status: 'No llegó' }
+    }));
+
+    addToast("Producto agregado. Define la cantidad esperada.", 'success');
+    setAddItemModalOpen(false);
+    setProductSearchTerm('');
+  };
 
   const { percent, perfect, hasDiscrepancies, missingCount } = useMemo(() => {
     const total = items.length;
@@ -818,21 +947,67 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                   </button>
                 )
               ) : (
+                !isEditingOrder && (
+                  <>
+                    <button
+                      onClick={handleReceiveAll}
+                      disabled={isProcessing}
+                      className="px-4 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 rounded-full text-xs font-bold transition-all whitespace-nowrap"
+                    >
+                      Recibir Todo OK
+                    </button>
+                    <button
+                      onClick={handleFinalizeAudit}
+                      disabled={isProcessing}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95 whitespace-nowrap flex items-center"
+                    >
+                      {isProcessing && <Loader2 className="animate-spin mr-2" size={16} />}
+                      Finalizar
+                    </button>
+                  </>
+                )
+              )}
+            </div>
+
+            <div className="flex gap-3 w-full md:w-auto mt-2 md:mt-0">
+              {/* EDIT ORDER BUTTON (Only for non-audited) */}
+              {activePedido.estado !== 'Auditado' && !isEditingOrder && (
+                <button
+                  onClick={() => setIsEditingOrder(true)}
+                  className="px-4 py-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold transition-all rounded-lg text-xs border border-transparent hover:border-blue-200"
+                >
+                  Editar Pedido
+                </button>
+              )}
+
+              {isEditingOrder && (
                 <>
                   <button
-                    onClick={handleReceiveAll}
-                    disabled={isProcessing}
-                    className="px-4 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 rounded-full text-xs font-bold transition-all whitespace-nowrap"
+                    onClick={handleOpenAddItem}
+                    className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 font-bold transition-colors rounded-lg flex items-center gap-2"
                   >
-                    Recibir Todo OK
+                    <PlusCircle size={16} />
+                    <span className="hidden sm:inline">Producto</span>
+                  </button>
+                  <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-1"></div>
+                  <button
+                    onClick={async () => {
+                      setIsEditingOrder(false);
+                      setItemsToDelete([]);
+                      // Reload to revert changes
+                      const original = await repository.getPedidoItems(activePedido.id);
+                      setItems(original);
+                    }}
+                    className="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold transition-colors"
+                  >
+                    Cancelar
                   </button>
                   <button
-                    onClick={handleFinalizeAudit}
-                    disabled={isProcessing}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95 whitespace-nowrap flex items-center"
+                    onClick={handleSaveOrderChanges}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95 flex items-center"
                   >
-                    {isProcessing && <Loader2 className="animate-spin mr-2" size={16} />}
-                    Finalizar
+                    {isProcessing ? <Loader2 className="animate-spin mr-2" size={16} /> : <Save size={16} className="mr-2" />}
+                    Guardar Cambios
                   </button>
                 </>
               )}
@@ -844,22 +1019,28 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
       {/* Grid of Items */}
       <div className="grid grid-cols-1 gap-3">
         {items.map(item => {
+          if (itemsToDelete.includes(item.id) && !isEditingOrder) return null; // Don't show if deleted (visual optimization, though we filter in save)
+          // Actually, we want to show them crossed out if isEditingOrder
+
           const audit = auditedValues[item.id];
           if (!audit) return null; // Guard against race conditions
 
           const diff = audit.qty - item.cantidad_pedida;
           const isPerfect = diff === 0;
           const isMissing = diff < 0;
+          const isMarkedForDeletion = itemsToDelete.includes(item.id);
 
           return (
             <GlassCard
               key={item.id}
               noPadding
-              className={`transition-all duration-300 ${isPerfect
-                ? 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/[0.02]'
-                : (activePedido.estado === 'Auditado' && isMissing) // Highlight missing in history
-                  ? 'border-rose-500/30 bg-rose-500/5 dark:bg-rose-500/[0.05]'
-                  : 'border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/[0.02]'
+              className={`transition-all duration-300 ${isMarkedForDeletion
+                ? 'opacity-50 grayscale border-rose-500 bg-rose-50'
+                : isPerfect
+                  ? 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/[0.02]'
+                  : (activePedido.estado === 'Auditado' && isMissing) // Highlight missing in history
+                    ? 'border-rose-500/30 bg-rose-500/5 dark:bg-rose-500/[0.05]'
+                    : 'border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/[0.02]'
                 }`}
             >
               <div className="p-4 flex flex-col md:flex-row items-center gap-6">
@@ -899,7 +1080,16 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                   {/* Expected */}
                   <div className="text-center opacity-70">
                     <p className="text-[9px] uppercase font-black tracking-widest mb-1 text-slate-500">Esperado</p>
-                    <p className="text-xl font-mono text-slate-700 dark:text-white">{item.cantidad_pedida}</p>
+                    {isEditingOrder ? (
+                      <input
+                        type="number"
+                        value={item.cantidad_pedida}
+                        onChange={(e) => updateAuditValue(item.id, parseInt(e.target.value) || 0, 'expected')}
+                        className="w-16 text-center bg-white dark:bg-white/5 border border-blue-300 dark:border-blue-500/50 rounded text-xl font-mono font-bold text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <p className="text-xl font-mono text-slate-700 dark:text-white">{item.cantidad_pedida}</p>
+                    )}
                   </div>
 
                   {/* Divider */}
@@ -918,7 +1108,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       <input
                         type="number"
                         value={audit.qty}
-                        readOnly={activePedido.estado === 'Auditado' && !isEditingHistory}
+                        readOnly={(activePedido.estado === 'Auditado' && !isEditingHistory) || isEditingOrder}
                         onChange={(e) => updateAuditValue(item.id, parseInt(e.target.value) || 0)}
                         className={`w-16 text-center bg-transparent font-mono text-xl font-bold focus:outline-none ${isPerfect ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                           } ${(activePedido.estado === 'Auditado' && !isEditingHistory) ? 'cursor-default' : ''}`}
@@ -937,13 +1127,33 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
                   {/* Status & Check Action */}
                   <div className="min-w-[120px] flex items-center justify-end gap-3">
-                    {activePedido.estado !== 'Auditado' && !isPerfect && (
+                    {activePedido.estado !== 'Auditado' && !isPerfect && !isEditingOrder && (
                       <button
                         onClick={() => updateAuditValue(item.id, item.cantidad_pedida)}
                         className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-400 transition-all shadow-sm border border-slate-200 dark:border-slate-700"
                         title="Marcar como Completo"
                       >
                         <Check size={18} />
+                      </button>
+                    )}
+
+                    {/* Delete Button for Edit Order Mode */}
+                    {isEditingOrder && (
+                      <button
+                        onClick={() => {
+                          if (itemsToDelete.includes(item.id)) {
+                            setItemsToDelete(prev => prev.filter(id => id !== item.id));
+                          } else {
+                            setItemsToDelete(prev => [...prev, item.id]);
+                          }
+                        }}
+                        className={`p-2 rounded-lg transition-all shadow-sm border ${itemsToDelete.includes(item.id)
+                          ? 'bg-rose-100 text-rose-600 border-rose-200'
+                          : 'bg-slate-100 text-slate-400 hover:bg-rose-500 hover:text-white border-slate-200'
+                          }`}
+                        title="Eliminar de la orden"
+                      >
+                        <Trash2 size={18} />
                       </button>
                     )}
 
@@ -1056,6 +1266,74 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                 <option key={b.id} value={b.id}>{b.nombre}</option>
               ))}
             </select>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add Item Modal */}
+      <Modal
+        isOpen={addItemModalOpen}
+        onClose={() => setAddItemModalOpen(false)}
+        title="Agregar Producto a la Orden"
+        maxWidth="max-w-xl"
+        footer={
+          <button
+            onClick={() => setAddItemModalOpen(false)}
+            className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            Cerrar
+          </button>
+        }
+      >
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              autoFocus
+              type="text"
+              placeholder="Buscar por nombre o SKU..."
+              className="w-full pl-10 pr-4 py-2.5 input-premium rounded-xl"
+              value={productSearchTerm}
+              onChange={e => setProductSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="h-64 overflow-y-auto space-y-2 pr-1">
+            {isSearchingProducts ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="animate-spin text-blue-500" />
+              </div>
+            ) : (
+              allProducts
+                .filter(p => p.nombre.toLowerCase().includes(productSearchTerm.toLowerCase()) || p.sku.toLowerCase().includes(productSearchTerm.toLowerCase()))
+                .map(p => {
+                  const alreadyAdded = items.some(i => i.producto_id === p.id);
+                  return (
+                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                      <div>
+                        <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{p.nombre}</p>
+                        <div className="flex gap-2 mt-1">
+                          <span className="text-[10px] bg-slate-100 dark:bg-black/20 px-1.5 py-0.5 rounded text-slate-500 font-mono">{p.sku}</span>
+                          <span className="text-[10px] text-slate-400">{p.marca?.nombre}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleAddNewItem(p)}
+                        disabled={alreadyAdded}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${alreadyAdded
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                          }`}
+                      >
+                        {alreadyAdded ? 'Agregado' : 'Agregar'}
+                      </button>
+                    </div>
+                  );
+                })
+            )}
+            {!isSearchingProducts && allProducts.length > 0 && allProducts.filter(p => p.nombre.toLowerCase().includes(productSearchTerm.toLowerCase())).length === 0 && (
+              <p className="text-center text-slate-400 text-sm py-8">No se encontraron productos.</p>
+            )}
           </div>
         </div>
       </Modal>

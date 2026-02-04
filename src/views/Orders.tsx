@@ -54,6 +54,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   // Edit State
   const [editingOrder, setEditingOrder] = useState<Pedido | null>(null);
   const [originalOrderItems, setOriginalOrderItems] = useState<PedidoItem[]>([]);
+  const [orderTitle, setOrderTitle] = useState('');
 
   // Context States
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -67,6 +68,20 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Effect: Auto-expand parent category when a subcategory is selected
+  useEffect(() => {
+    if (selectedCategory && categories.length > 0) {
+      const cat = categories.find(c => c.id === selectedCategory);
+      if (cat && cat.parent_id) {
+        setExpandedCategories(prev => {
+          const next = new Set(prev);
+          next.add(cat.parent_id);
+          return next;
+        });
+      }
+    }
+  }, [selectedCategory, categories]);
 
   const loadData = async () => {
     try {
@@ -112,6 +127,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       setCart(newCart);
 
       setEditingOrder(order);
+      setOrderTitle(order.titulo || ''); // Load title
       setOriginalOrderItems(items);
       setViewMode('CREATE');
 
@@ -195,6 +211,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
   const cancelEdit = () => {
     setEditingOrder(null);
+    setOrderTitle(''); // Reset title
     setOriginalOrderItems([]);
     setCart({});
     // If we came from list, go back to list
@@ -247,11 +264,17 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   const handleSaveOrder = async (stayOpen: boolean = false) => {
     if (cartItems.length === 0) return;
 
+    if (!orderTitle.trim()) {
+      addToast("El título del pedido es obligatorio.", 'error');
+      return;
+    }
+
     try {
       if (editingOrder) {
         // UPDATE EXISTING ORDER
         await repository.updatePedido(editingOrder.id, {
           total_items: cartItems.length,
+          titulo: orderTitle // Update Title
           // Update status if needed, or keep previous
         });
 
@@ -303,6 +326,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           proveedor_id: mainProviderId,
           estado: 'Pendiente',
           total_items: cartItems.length,
+          titulo: orderTitle, // Save Title
           observaciones_generales: `Pedido creado por ${orderMode === 'PROVIDER' ? 'Proveedor' : 'Categoría'}`
         });
 
@@ -332,6 +356,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         // Cleanup
         setCart({});
         setEditingOrder(null);
+        setOrderTitle(''); // Reset title
         setOriginalOrderItems([]);
         loadData(); // Refresh list
         setViewMode('LIST');
@@ -357,10 +382,12 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       setLoading(true);
       const items = await repository.getPedidoItems(order.id);
 
-      // Filename/Title based on Brand
+      // Filename/Title based on Brand or custom Title
       const firstBrand = items[0]?.producto?.marca?.nombre?.toUpperCase() || 'GENERAL';
       const cleanBrand = firstBrand.replace(/[^a-zA-Z0-9ñÑ]/g, '');
-      const title = `PEDIDOS ${firstBrand}`;
+
+      // Use custom title if available, otherwise fallback to standard naming
+      const title = order.titulo?.toUpperCase() || `PEDIDOS ${firstBrand}`;
 
       const headers = ['REFERENCIA', 'PRODUCTO / VEHÍCULO', 'MARCA', 'CATEGORÍA', 'SUBCATEGORÍA', 'CANTIDAD'];
 
@@ -545,7 +572,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-slate-800 dark:text-white">
-                    {(() => {
+                    {order.titulo || (() => {
                       const brands = Array.from(new Set(order.items?.map(i => i.producto?.marca?.nombre).filter(Boolean)));
                       return brands.length > 0 ? brands.join(', ') : (order.proveedor?.nombre || 'Proveedor Desconocido');
                     })()}
@@ -644,33 +671,46 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
   // - CREATE / EDIT VIEW -
   return (
-    <div className="lg:col-span-12 flex flex-col h-[calc(100vh-140px)] animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="lg:col-span-12 flex flex-col h-auto min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-      {/* Header (Compact) */}
+      {/* New Unified Toolbar */}
       {!editingOrder && (
-        <div className="flex justify-between items-center mb-4 px-2">
-          <div className="flex items-center space-x-3">
+        <div className="bg-white dark:bg-[#1e293b] p-3 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between mb-6 gap-4 sticky top-0 z-30">
+
+          {/* Left: Mode Switcher */}
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
             <button
               onClick={() => setOrderMode('PROVIDER')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${orderMode === 'PROVIDER' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${orderMode === 'PROVIDER' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              Por Proveedor
+              Proveedores
             </button>
             <button
               onClick={() => setOrderMode('CATEGORY')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${orderMode === 'CATEGORY' ? 'bg-violet-600 border-violet-600 text-white shadow-lg shadow-violet-600/20' : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${orderMode === 'CATEGORY' ? 'bg-white dark:bg-slate-700 text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              Por Categoría
+              Categorías
             </button>
           </div>
 
-          {/* Search Bar - Integrated in Header */}
-          <div className="relative group w-64 md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+          {/* Center: Title Input */}
+          <div className="relative group w-full md:w-96">
             <input
               type="text"
-              placeholder="Buscar producto..."
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+              placeholder="Título del Pedido *"
+              className={`w-full text-center px-4 py-2 bg-transparent border-b-2 ${!orderTitle ? 'border-slate-200' : 'border-blue-500'} focus:border-blue-600 outline-none transition-all font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-300`}
+              value={orderTitle}
+              onChange={e => setOrderTitle(e.target.value)}
+            />
+          </div>
+
+          {/* Right: Search */}
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -679,17 +719,31 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       )}
 
       {/* Editing Header */}
-      {editingOrder && (
-        <div className="flex items-center space-x-4 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
-          <button onClick={cancelEdit} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors">
-            <ArrowLeft size={20} className="text-slate-500" />
-          </button>
-          <div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Editando Pedido #{editingOrder.id.slice(0, 6)}</h2>
-            <p className="text-xs text-slate-400">Modifica las cantidades o agrega nuevos productos</p>
+      {
+        editingOrder && (
+          <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+            <div className="flex items-center space-x-4">
+              <button onClick={cancelEdit} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors">
+                <ArrowLeft size={20} className="text-slate-500" />
+              </button>
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Editando Pedido #{editingOrder.id.slice(0, 6)}</h2>
+                <p className="text-xs text-slate-400">Modifica las cantidades o agrega nuevos productos</p>
+              </div>
+            </div>
+            {/* Title Input Edit */}
+            <div className="w-64">
+              <input
+                type="text"
+                placeholder="Título del Pedido *"
+                className={`w-full px-4 py-2 bg-white dark:bg-[#1e293b] border ${!orderTitle ? 'border-red-300' : 'border-slate-200'} dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-700 dark:text-slate-200`}
+                value={orderTitle}
+                onChange={e => setOrderTitle(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
 
@@ -708,13 +762,15 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                   key={p.id}
                   onClick={() => setSelectedProvFilter(p.id)}
                   disabled={!!editingOrder && editingOrder.proveedor_id !== p.id}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between group ${selectedProvFilter === p.id
-                    ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-600/20'
-                    : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                  className={`w-full text-left pl-4 pr-3 py-3 text-xs font-bold transition-all flex items-center justify-between group relative ${selectedProvFilter === p.id
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/10'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
                     } ${editingOrder && editingOrder.proveedor_id !== p.id ? 'opacity-40 cursor-not-allowed' : ''}`}
                 >
+                  {selectedProvFilter === p.id && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-lg"></div>
+                  )}
                   <span className="truncate">{p.nombre}</span>
-                  {selectedProvFilter === p.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
                 </button>
               ))
             ) : (
@@ -743,7 +799,10 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                         : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
                         }`}>
                         <button
-                          onClick={() => setSelectedCategory(cat.id)}
+                          onClick={(e) => {
+                            setSelectedCategory(cat.id);
+                            if (hasSubs) toggleExpand(e, cat.id);
+                          }}
                           className={`flex-1 text-left px-3 py-2.5 text-xs font-bold ${(isSelected || isParentOfSelected) ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-400'
                             }`}
                         >
@@ -758,13 +817,13 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                               : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
                               }`}
                           >
-                            {isExpanded || isParentOfSelected ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </button>
                         )}
                       </div>
 
                       {/* Subcategories */}
-                      {(isExpanded || isParentOfSelected) && hasSubs && (
+                      {isExpanded && hasSubs && (
                         <div className="ml-3 mt-1 pl-3 border-l-2 border-slate-100 dark:border-slate-800 space-y-1 animate-in slide-in-from-top-1 duration-200">
                           {categories.filter(s => s.parent_id === cat.id).map(sub => (
                             <button
@@ -826,48 +885,43 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 pb-24 lg:pb-0">
+          <div className="flex-1 min-h-0 pb-24 lg:pb-0">
             {filtered.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filtered.map(product => {
                   const inCart = cart[product.id] || 0;
                   return (
-                    <div key={product.id} className={`bg-white dark:bg-[#1e293b] p-4 rounded-2xl border transition-all ${inCart > 0 ? 'border-blue-500 shadow-md shadow-blue-500/10' : 'border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md'}`}>
+                    <div key={product.id} className="group relative bg-white dark:bg-[#1e293b] p-4 rounded-3xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 hover:shadow-xl dark:hover:shadow-black/40 transition-all duration-300">
 
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-xl">
-                          <Package size={20} className="text-slate-400" />
-                        </div>
-                        {inCart > 0 && (
-                          <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            {inCart} en carrito
-                          </span>
-                        )}
+                      {/* Top Info */}
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="text-[10px] font-black tracking-wider text-slate-300 dark:text-slate-600 uppercase">{product.marca?.nombre}</span>
+                        {inCart > 0 && <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-blue-500/30">{inCart}</span>}
                       </div>
 
-                      <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm leading-snug mb-1 line-clamp-2 min-h-[2.5em]">{product.nombre}</h4>
-                      <p className="text-xs text-slate-400 font-mono mb-3">{product.sku}</p>
+                      {/* Main Content */}
+                      <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm leading-snug mb-1 line-clamp-2 min-h-[2.5em] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{product.nombre}</h4>
+                      <p className="text-[10px] text-slate-400 font-mono mb-4">{product.sku}</p>
 
-                      <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50 dark:border-slate-800">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate max-w-[80px]">{product.marca?.nombre}</span>
-
+                      {/* Action Area - Floating on Hover or always visible if active */}
+                      <div className={`mt-2 flex items-center justify-end transition-all ${inCart > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0'}`}>
                         {inCart === 0 ? (
                           <button
                             onClick={() => addToCart(product.id)}
-                            className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-600/20 transition-colors"
+                            className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 transition-all flex items-center justify-center shadow-sm hover:shadow-blue-500/30 active:scale-90"
                           >
-                            <Plus size={18} />
+                            <Plus size={20} />
                           </button>
                         ) : (
-                          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+                          <div className="flex items-center bg-blue-50 dark:bg-blue-900/20 rounded-full p-1 border border-blue-100 dark:border-blue-500/20">
                             <button
                               onClick={() => updateCartQty(product.id, inCart - 1)}
-                              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-rose-500 transition-colors"
+                              className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-rose-500 hover:bg-white rounded-full transition-all"
                             >-</button>
-                            <span className="text-xs font-black w-6 text-center">{inCart}</span>
+                            <span className="text-xs font-black w-8 text-center text-blue-700 dark:text-blue-300">{inCart}</span>
                             <button
                               onClick={() => updateCartQty(product.id, inCart + 1)}
-                              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-blue-500 transition-colors"
+                              className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-white rounded-full transition-all"
                             >+</button>
                           </div>
                         )}
@@ -895,8 +949,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         )}
 
         <div className={`
-            col-span-3 flex-col h-full pl-2 py-2 transition-transform duration-300
-            ${showMobileCart ? 'fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-[#0f172a] shadow-2xl p-0' : 'hidden lg:flex'}
+            col-span-3 flex-col pl-2 py-2 transition-transform duration-300
+            ${showMobileCart ? 'fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-[#0f172a] shadow-2xl p-0 h-full' : 'hidden lg:flex sticky top-0 h-[calc(100vh-2rem)]'}
         `}>
 
           <div className="flex-1 flex flex-col bg-white dark:bg-[#1e293b] lg:rounded-[2rem] shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden h-full">
@@ -927,7 +981,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 min-h-0">
               {cartItems.map(({ product, qty }) => (
                 <div key={product.id} className="group flex flex-col bg-white dark:bg-[#0f172a] p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
 
@@ -1006,7 +1060,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           </div>
         </div>
       </div>
-    </div>
+    </div >
 
   );
 };

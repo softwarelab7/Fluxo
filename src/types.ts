@@ -47,6 +47,7 @@ export interface Pedido {
   fecha_recepcion?: string;
   total_items: number;
   observaciones_generales?: string;
+  titulo?: string; // User defined title
   // Joins
   proveedor?: Proveedor;
   items?: PedidoItem[];

@@ -72,9 +72,10 @@ const Suppliers = () => {
       }
       await loadSuppliers();
       setShowModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving supplier:', error);
-      addToast('Error al guardar proveedor.', 'error');
+      const errorMessage = error.message || error.error_description || 'Error al guardar proveedor.';
+      addToast(`Error: ${errorMessage}`, 'error');
     }
   };
 
