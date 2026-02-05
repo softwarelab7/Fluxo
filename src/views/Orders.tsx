@@ -4,19 +4,20 @@ import {
   Search,
   ShoppingCart,
   Plus,
+  Minus,
   Trash2,
-  Send,
-  PackageCheck,
-  Truck,
-  Layers,
-  Package,
-  Loader2,
   Save,
-  FileSpreadsheet,
-  Edit,
-  ArrowLeft,
+  Truck,
+  ChevronDown,
   ChevronRight,
-  ChevronDown
+  Filter,
+  X,
+  FileSpreadsheet,
+  ArrowLeft,
+  Loader2,
+  Send,
+  Edit,
+  PackageCheck
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import XLSX from 'xlsx-js-style';
@@ -65,6 +66,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [showMobileCart, setShowMobileCart] = useState(false);
 
+  // Preview State
+  const [previewOrder, setPreviewOrder] = useState<Pedido | null>(null);
+  const [previewItems, setPreviewItems] = useState<PedidoItem[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -93,12 +99,13 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         repository.getPedidos()
       ]);
       setCategories(cats);
-      setProveedores(provs);
+      setProveedores(provs.map(p => ({ ...p, is_active: p.is_active ?? true })));
       setProducts(prods);
       setPendingOrders(orders.filter(o => o.estado === 'Pendiente')); // Show only draftsafts
 
       // Init default filters
-      if (provs.length > 0) setSelectedProvFilter(provs[0].id);
+      const activeProvs = provs.filter(p => p.is_active !== false);
+      if (activeProvs.length > 0) setSelectedProvFilter(activeProvs[0].id);
       if (cats.length > 0) setSelectedCategory(cats[0].id);
 
     } catch (error) {
@@ -182,12 +189,15 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
     if (orderMode === 'PROVIDER') {
       setSelectedCategory(null);
-      if (proveedores.length > 0 && !selectedProvFilter) setSelectedProvFilter(proveedores[0].id);
-      setCart({});
+      if (proveedores.length > 0 && !selectedProvFilter) {
+        const firstActive = proveedores.find(p => p.is_active !== false);
+        if (firstActive) setSelectedProvFilter(firstActive.id);
+      }
+      // setCart({}); // Cart preserved
     } else {
       setSelectedProvFilter(null);
       if (categories.length > 0 && !selectedCategory) setSelectedCategory(categories[0].id);
-      setCart({});
+      // setCart({}); // Cart preserved
     }
   }, [orderMode, categories, proveedores]); // Removed editingOrder from dependencies to avoid loop
 
@@ -374,6 +384,20 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     } catch (error) {
       console.error("Error saving order:", error);
       addToast("Error al guardar el borrador.", 'error');
+    }
+  };
+
+  const handlePreviewOrder = async (order: Pedido) => {
+    setPreviewOrder(order);
+    setPreviewLoading(true);
+    try {
+      const items = await repository.getPedidoItems(order.id);
+      setPreviewItems(items);
+    } catch (error) {
+      console.error("Error creating preview:", error);
+      addToast("Error al cargar detalles del pedido.", 'error');
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -565,7 +589,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
         <div className="grid grid-cols-1 gap-4">
           {pendingOrders.map(order => (
-            <GlassCard key={order.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 group hover:border-blue-500/30 transition-all">
+            <GlassCard
+              key={order.id}
+              className="flex flex-col md:flex-row md:items-center justify-between p-6 group hover:border-blue-500/30 transition-all cursor-pointer"
+              onClick={() => handlePreviewOrder(order)}
+            >
               <div className="flex items-center space-x-4 mb-4 md:mb-0">
                 <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
                   <Truck className="text-orange-500" size={24} />
@@ -581,7 +609,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-6" onClick={(e) => e.stopPropagation()}>
                 <div className="text-right">
                   <p className="text-[10px] uppercase font-black text-slate-500 tracking-wider">Items</p>
                   <p className="text-xl font-bold text-blue-400">{order.total_items}</p>
@@ -665,6 +693,85 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             </span>
           </p>
         </Modal>
+
+        {/* Preview Modal */}
+        <Modal
+          isOpen={!!previewOrder}
+          onClose={() => setPreviewOrder(null)}
+          title={previewOrder?.titulo || 'Detalles del Pedido'}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setPreviewOrder(null)}
+                className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 transition-colors"
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => {
+                  if (previewOrder) {
+                    setPreviewOrder(null);
+                    loadOrderForEditing(previewOrder);
+                  }
+                }}
+                className="px-4 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
+              >
+                <Edit size={16} />
+                Editar Pedido
+              </button>
+            </div>
+          }
+        >
+          {previewLoading ? (
+            <div className="flex flex-col items-center justify-center py-10 space-y-4">
+              <Loader2 className="animate-spin text-blue-500" size={32} />
+              <p className="text-slate-400 text-sm">Cargando productos...</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-black text-slate-400">Proveedor / Contexto</p>
+                  <p className="font-bold text-slate-700 dark:text-slate-200">
+                    {previewOrder?.proveedor?.nombre || 'N/A'}
+                  </p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-black text-slate-400">Total Items</p>
+                  <p className="font-bold text-blue-500 text-lg">
+                    {previewOrder?.total_items}
+                  </p>
+                </div>
+              </div>
+
+              <div className="max-h-[50vh] overflow-y-auto custom-scrollbar border rounded-xl border-slate-100 dark:border-slate-700">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-500">Producto</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-slate-500">Cant.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {previewItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-slate-700 dark:text-slate-200">{item.producto?.nombre}</div>
+                          <div className="text-xs text-slate-400 font-mono mt-0.5">
+                            {item.producto?.sku} • {item.producto?.marca?.nombre}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-slate-800 dark:text-white bg-slate-50/50 dark:bg-white/5">
+                          {item.cantidad_pedida}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </Modal>
       </div >
     );
   }
@@ -731,15 +838,27 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                 <p className="text-xs text-slate-400">Modifica las cantidades o agrega nuevos productos</p>
               </div>
             </div>
-            {/* Title Input Edit */}
-            <div className="w-64">
-              <input
-                type="text"
-                placeholder="Título del Pedido *"
-                className={`w-full px-4 py-2 bg-white dark:bg-[#1e293b] border ${!orderTitle ? 'border-red-300' : 'border-slate-200'} dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-700 dark:text-slate-200`}
-                value={orderTitle}
-                onChange={e => setOrderTitle(e.target.value)}
-              />
+            {/* Title Input Edit & Search */}
+            <div className="flex items-center gap-4">
+              <div className="relative w-48">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Buscar producto..."
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="w-64">
+                <input
+                  type="text"
+                  placeholder="Título del Pedido *"
+                  className={`w-full px-4 py-2 bg-white dark:bg-[#1e293b] border ${!orderTitle ? 'border-red-300' : 'border-slate-200'} dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-700 dark:text-slate-200`}
+                  value={orderTitle}
+                  onChange={e => setOrderTitle(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         )
@@ -757,22 +876,24 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             </h3>
 
             {orderMode === 'PROVIDER' ? (
-              proveedores.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedProvFilter(p.id)}
-                  disabled={!!editingOrder && editingOrder.proveedor_id !== p.id}
-                  className={`w-full text-left pl-4 pr-3 py-3 text-xs font-bold transition-all flex items-center justify-between group relative ${selectedProvFilter === p.id
-                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/10'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
-                    } ${editingOrder && editingOrder.proveedor_id !== p.id ? 'opacity-40 cursor-not-allowed' : ''}`}
-                >
-                  {selectedProvFilter === p.id && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-lg"></div>
-                  )}
-                  <span className="truncate">{p.nombre}</span>
-                </button>
-              ))
+              proveedores
+                .filter(p => (p.is_active ?? true) || (editingOrder && editingOrder.proveedor_id === p.id))
+                .map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedProvFilter(p.id)}
+                    disabled={!!editingOrder && editingOrder.proveedor_id !== p.id}
+                    className={`w-full text-left pl-4 pr-3 py-3 text-xs font-bold transition-all flex items-center justify-between group relative ${selectedProvFilter === p.id
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/10'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
+                      } ${editingOrder && editingOrder.proveedor_id !== p.id ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    {selectedProvFilter === p.id && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-lg"></div>
+                    )}
+                    <span className="truncate">{p.nombre}</span>
+                  </button>
+                ))
             ) : (
               // Categories Tree
               <div className="space-y-2">
@@ -848,7 +969,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         </div>
 
         {/* MAIN GRID */}
-        <div className="col-span-12 lg:col-span-7 flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-500 delay-100">
+        <div className="col-span-12 lg:col-span-6 flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-500 delay-100">
 
           {/* Mobile Cart Toggle FAB */}
           <button
@@ -887,42 +1008,56 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
           <div className="flex-1 min-h-0 pb-24 lg:pb-0">
             {filtered.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                 {filtered.map(product => {
                   const inCart = cart[product.id] || 0;
-                  return (
-                    <div key={product.id} className="group relative bg-white dark:bg-[#1e293b] p-4 rounded-3xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 hover:shadow-xl dark:hover:shadow-black/40 transition-all duration-300">
+                  const subCategoryName = categories.find(c => c.id === product.subcategoria_id)?.name;
 
-                      {/* Top Info */}
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="text-[10px] font-black tracking-wider text-slate-300 dark:text-slate-600 uppercase">{product.marca?.nombre}</span>
-                        {inCart > 0 && <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-blue-500/30">{inCart}</span>}
+                  return (
+                    <div key={product.id} className={`group relative bg-white dark:bg-[#1e293b] p-3 rounded-lg border transition-all duration-200 ${inCart > 0 ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+
+                      {/* Top: SKU, Subcat & Brand */}
+                      <div className="flex flex-col gap-0.5 mb-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400">{product.sku}</span>
+                          <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">{product.marca?.nombre}</span>
+                        </div>
+                        {subCategoryName && (
+                          <span className="text-[8px] font-bold text-violet-500 dark:text-violet-400 uppercase truncate">{subCategoryName}</span>
+                        )}
                       </div>
 
-                      {/* Main Content */}
-                      <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm leading-snug mb-1 line-clamp-2 min-h-[2.5em] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{product.nombre}</h4>
-                      <p className="text-[10px] text-slate-400 font-mono mb-4">{product.sku}</p>
+                      {/* Content: Name */}
+                      <div className="mb-2 h-8">
+                        <h4 className="font-bold text-slate-700 dark:text-slate-200 text-[10px] leading-snug line-clamp-2" title={product.nombre}>
+                          {product.nombre}
+                        </h4>
+                      </div>
 
-                      {/* Action Area - Floating on Hover or always visible if active */}
-                      <div className={`mt-2 flex items-center justify-end transition-all ${inCart > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0'}`}>
+                      {/* Footer: Action */}
+                      <div className="flex items-center justify-end">
                         {inCart === 0 ? (
                           <button
                             onClick={() => addToCart(product.id)}
-                            className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 transition-all flex items-center justify-center shadow-sm hover:shadow-blue-500/30 active:scale-90"
+                            className="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 dark:bg-slate-800 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white rounded-md p-1 transition-colors"
                           >
-                            <Plus size={20} />
+                            <Plus size={14} />
                           </button>
                         ) : (
-                          <div className="flex items-center bg-blue-50 dark:bg-blue-900/20 rounded-full p-1 border border-blue-100 dark:border-blue-500/20">
+                          <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 rounded-md p-0.5">
                             <button
                               onClick={() => updateCartQty(product.id, inCart - 1)}
-                              className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-rose-500 hover:bg-white rounded-full transition-all"
-                            >-</button>
-                            <span className="text-xs font-black w-8 text-center text-blue-700 dark:text-blue-300">{inCart}</span>
+                              className="text-slate-400 hover:text-rose-500 transition-colors p-0.5"
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="font-bold text-slate-700 dark:text-white text-[10px] w-4 text-center">{inCart}</span>
                             <button
                               onClick={() => updateCartQty(product.id, inCart + 1)}
-                              className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-white rounded-full transition-all"
-                            >+</button>
+                              className="text-slate-400 hover:text-blue-500 transition-colors p-0.5"
+                            >
+                              <Plus size={12} />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -949,7 +1084,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         )}
 
         <div className={`
-            col-span-3 flex-col pl-2 py-2 transition-transform duration-300
+            col-span-4 flex-col pl-2 py-2 transition-transform duration-300
             ${showMobileCart ? 'fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-[#0f172a] shadow-2xl p-0 h-full' : 'hidden lg:flex sticky top-0 h-[calc(100vh-2rem)]'}
         `}>
 
@@ -982,38 +1117,46 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 min-h-0">
-              {cartItems.map(({ product, qty }) => (
-                <div key={product.id} className="group flex flex-col bg-white dark:bg-[#0f172a] p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
+              {cartItems.map(({ product, qty }) => {
+                const subCategoryName = categories.find(c => c.id === product.subcategoria_id)?.name;
+                return (
+                  <div key={product.id} className="group flex flex-col bg-white dark:bg-[#0f172a] p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
 
-                  {/* Remove Button */}
-                  <button
-                    onClick={() => removeFromCart(product.id)}
-                    className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors opacity-100 lg:opacity-0 group-hover:opacity-100"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                    {/* Remove Button */}
+                    <button
+                      onClick={() => removeFromCart(product.id)}
+                      className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors opacity-100 lg:opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={14} />
+                    </button>
 
-                  <div className="pr-6 mb-2">
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate leading-snug">{product.nombre}</p>
-                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">{product.sku}</p>
-                  </div>
+                    <div className="pr-6 mb-2">
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate leading-snug">{product.nombre}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[10px] text-slate-400 font-mono">{product.sku}</p>
+                        {subCategoryName && (
+                          <p className="text-[9px] font-bold text-violet-500 dark:text-violet-400 uppercase truncate max-w-[100px]">{subCategoryName}</p>
+                        )}
+                      </div>
+                    </div>
 
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{product.marca?.nombre}</span>
-                    <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-100 dark:border-slate-700">
-                      <button
-                        onClick={() => updateCartQty(product.id, qty - 1)}
-                        className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all font-bold text-lg leading-none pb-0.5"
-                      >-</button>
-                      <span className="text-sm font-black text-slate-700 dark:text-white w-6 text-center tabular-nums">{qty}</span>
-                      <button
-                        onClick={() => updateCartQty(product.id, qty + 1)}
-                        className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all font-bold text-lg leading-none pb-0.5"
-                      >+</button>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{product.marca?.nombre}</span>
+                      <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-100 dark:border-slate-700">
+                        <button
+                          onClick={() => updateCartQty(product.id, qty - 1)}
+                          className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all font-bold text-lg leading-none pb-0.5"
+                        >-</button>
+                        <span className="text-sm font-black text-slate-700 dark:text-white w-6 text-center tabular-nums">{qty}</span>
+                        <button
+                          onClick={() => updateCartQty(product.id, qty + 1)}
+                          className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all font-bold text-lg leading-none pb-0.5"
+                        >+</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {cartItems.length === 0 && (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-60">

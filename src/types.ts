@@ -32,7 +32,7 @@ export interface Producto {
 
   stock_actual: number;
   stock_minimo: number;
-  is_high_rotation: boolean;
+  rotacion: 'alta' | 'media' | 'baja';
   // Joins
   marca?: Marca;
   categoria?: Categoria;

@@ -94,7 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       ]);
 
       const critical = products.filter(p => p.stock_actual <= p.stock_minimo);
-      const highRot = products.filter(p => p.is_high_rotation);
+      const highRot = products.filter(p => p.rotacion === 'alta');
       const pending = pedidos.filter(p => p.estado === 'Pendiente');
       const inTransit = pedidos.filter(p => p.estado === 'En Camino');
 

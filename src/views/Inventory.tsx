@@ -56,7 +56,7 @@ const Inventory = () => {
     subcategoria_id: '',
     stock_actual: 0,
     stock_minimo: 5,
-    is_high_rotation: false,
+    rotacion: 'media',
     preferred_supplier_id: '' // added for consistency
   });
 
@@ -90,7 +90,7 @@ const Inventory = () => {
       setProducts(prods);
       setMarcas(brands);
       setCategorias(cats);
-      setProveedores(provs);
+      setProveedores(provs.map(p => ({ ...p, is_active: p.is_active ?? true })));
     } catch (error) {
       console.error("Error loading inventory:", error);
       addToast("Error al cargar inventario", "error");
@@ -121,7 +121,7 @@ const Inventory = () => {
         subCategoryName,
         p.stock_actual,
         p.stock_minimo,
-        p.is_high_rotation ? 'Alta' : 'Normal'
+        p.rotacion ? p.rotacion.charAt(0).toUpperCase() + p.rotacion.slice(1) : 'Media'
       ];
     });
 
@@ -266,7 +266,8 @@ const Inventory = () => {
       const payload = {
         ...newProduct,
         marca_id: newProduct.marca_id || marcas[0]?.id,
-        subcategoria_id: newProduct.subcategoria_id || categorias[0]?.id
+        // If subcategory is empty, try to use the selected parent category. Only default to [0] if absolutely nothing is selected.
+        subcategoria_id: newProduct.subcategoria_id || selectedParentId || categorias[0]?.id
       };
 
       if (editingProduct) {
@@ -300,7 +301,7 @@ const Inventory = () => {
       subcategoria_id: '',
       stock_actual: 0,
       stock_minimo: 5,
-      is_high_rotation: false,
+      rotacion: 'media',
       preferred_supplier_id: ''
     });
   };
@@ -312,7 +313,8 @@ const Inventory = () => {
     if (currentCat && currentCat.parent_id) {
       setSelectedParentId(currentCat.parent_id);
     } else {
-      setSelectedParentId('');
+      // If it has no parent_id, it might be a top-level category itself
+      setSelectedParentId(currentCat ? currentCat.id : '');
     }
 
     setNewProduct({
@@ -322,7 +324,7 @@ const Inventory = () => {
       subcategoria_id: p.subcategoria_id,
       stock_actual: p.stock_actual,
       stock_minimo: p.stock_minimo,
-      is_high_rotation: p.is_high_rotation || false,
+      rotacion: p.rotacion || 'media',
       preferred_supplier_id: p.preferred_supplier_id || ''
     });
     setShowAddModal(true);
@@ -453,19 +455,21 @@ const Inventory = () => {
               </h3>
 
               {orderMode === 'PROVIDER' ? (
-                proveedores.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedProvFilter(p.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between group ${selectedProvFilter === p.id
-                      ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-600/20'
-                      : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
-                      }`}
-                  >
-                    <span className="truncate">{p.nombre}</span>
-                    {selectedProvFilter === p.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
-                  </button>
-                ))
+                proveedores
+                  .filter(p => p.is_active !== false)
+                  .map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedProvFilter(p.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between group ${selectedProvFilter === p.id
+                        ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-600/20'
+                        : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                        }`}
+                    >
+                      <span className="truncate">{p.nombre}</span>
+                      {selectedProvFilter === p.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
+                    </button>
+                  ))
               ) : (
                 // Categories Tree
                 <div className="space-y-2">
@@ -582,9 +586,15 @@ const Inventory = () => {
                       <Package size={100} />
                     </div>
 
-                    {p.is_high_rotation && (
+                    {/* Rotation Badge only if High or Low */}
+                    {p.rotacion === 'alta' && (
                       <div className="absolute top-0 right-0">
-                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-amber-400 border-r-amber-400 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm"></div>
+                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-amber-400 border-r-amber-400 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Alta Rotación"></div>
+                      </div>
+                    )}
+                    {p.rotacion === 'baja' && (
+                      <div className="absolute top-0 right-0">
+                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-slate-300 border-r-slate-300 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Baja Rotación"></div>
                       </div>
                     )}
 
@@ -713,7 +723,7 @@ const Inventory = () => {
                       <CustomSelect
                         value={newProduct.preferred_supplier_id}
                         onChange={(val) => setNewProduct({ ...newProduct, preferred_supplier_id: val })}
-                        options={proveedores.map(p => ({ value: p.id, label: p.nombre }))}
+                        options={proveedores.filter(p => (p.is_active !== false) || (editingProduct && editingProduct.preferred_supplier_id === p.id)).map(p => ({ value: p.id, label: p.nombre }))}
                         placeholder="Proveedor..."
                         className="text-sm h-11"
                       />
@@ -756,14 +766,35 @@ const Inventory = () => {
                     </div>
 
                     <div className="col-span-6 md:col-span-4 flex items-center gap-4 pl-4 border-l border-slate-100 dark:border-white/5 h-11">
-                      <label className="flex items-center space-x-2 cursor-pointer group shrink-0">
-                        <input type="checkbox" checked={newProduct.is_high_rotation} onChange={e => setNewProduct({ ...newProduct, is_high_rotation: e.target.checked })} className="hidden peer" />
-                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600 relative transition-colors"></div>
-                        <span className="text-xs font-bold text-slate-500 group-hover:text-blue-600 transition-colors">Alta Rotación</span>
-                      </label>
-                      <button type="submit" className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 transition-all text-base flex items-center justify-center gap-2">
+                      <div className="flex-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Rotación</label>
+                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 h-11">
+                          <button
+                            type="button"
+                            onClick={() => setNewProduct({ ...newProduct, rotacion: 'baja' })}
+                            className={`flex-1 rounded-md text-xs font-bold transition-all ${newProduct.rotacion === 'baja' ? 'bg-white dark:bg-slate-700 text-slate-600 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            Baja
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNewProduct({ ...newProduct, rotacion: 'media' })}
+                            className={`flex-1 rounded-md text-xs font-bold transition-all ${(!newProduct.rotacion || newProduct.rotacion === 'media') ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            Media
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNewProduct({ ...newProduct, rotacion: 'alta' })}
+                            className={`flex-1 rounded-md text-xs font-bold transition-all ${newProduct.rotacion === 'alta' ? 'bg-white dark:bg-slate-700 text-amber-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            Alta
+                          </button>
+                        </div>
+                      </div>
+                      <button type="submit" className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 transition-all text-sm flex items-center justify-center gap-2 self-end">
                         <Plus size={18} />
-                        <span>Crear</span>
+                        <span>{editingProduct ? 'Guardar' : 'Crear'}</span>
                       </button>
                     </div>
                   </div>
