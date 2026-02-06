@@ -226,7 +226,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4 lg:p-8 pt-20 lg:pt-8 custom-scrollbar">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full h-full">
           {children}
         </div>
       </main>

@@ -969,17 +969,17 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         </div>
 
         {/* MAIN GRID */}
-        <div className="col-span-12 lg:col-span-6 flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-500 delay-100">
+        <div className="col-span-12 lg:col-span-10 flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-500 delay-100">
 
           {/* Mobile Cart Toggle FAB */}
           <button
             onClick={() => setShowMobileCart(true)}
-            className="lg:hidden fixed bottom-6 right-6 z-40 bg-blue-600 text-white w-14 h-14 rounded-full shadow-xl shadow-blue-600/30 flex items-center justify-center animate-bounce"
+            className="fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-500 text-white w-16 h-16 rounded-full shadow-2xl shadow-blue-600/40 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
           >
             <div className="relative">
-              <ShoppingCart size={24} />
+              <ShoppingCart size={28} />
               {cartItems.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-blue-600">
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900">
                   {cartItems.length}
                 </span>
               )}
@@ -1074,45 +1074,46 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           </div>
         </div>
 
-        {/* RIGHT SIDEBAR - CART */}
-        {/* Mobile Backdrop */}
+        {/* RIGHT SIDEBAR - CART DRAWER */}
+        {/* Backdrop */}
         {showMobileCart && (
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={() => setShowMobileCart(false)}
           />
         )}
 
         <div className={`
-            col-span-4 flex-col pl-2 py-2 transition-transform duration-300
-            ${showMobileCart ? 'fixed inset-y-0 right-0 z-50 w-80 bg-white dark:bg-[#0f172a] shadow-2xl p-0 h-full' : 'hidden lg:flex sticky top-0 h-[calc(100vh-2rem)]'}
+            fixed inset-y-0 right-0 z-50 w-full md:w-[450px] bg-white dark:bg-[#0f172a] shadow-2xl transform transition-transform duration-300 ease-in-out
+            ${showMobileCart ? 'translate-x-0' : 'translate-x-full'}
         `}>
 
-          <div className="flex-1 flex flex-col bg-white dark:bg-[#1e293b] lg:rounded-[2rem] shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 overflow-hidden h-full">
+          <div className="flex flex-col h-full bg-white dark:bg-[#1e293b] border-l border-slate-100 dark:border-slate-800 overflow-hidden">
 
             {/* Header */}
-            <div className="px-6 pt-6 pb-4 bg-slate-50/50 dark:bg-slate-800/20 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between">
+            <div className="px-6 py-5 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between backdrop-blur-md">
               <div>
-                <div className="flex items-center justify-between mb-1 gap-2">
-                  <h3 className="font-black text-slate-800 dark:text-white text-lg tracking-tight flex items-center gap-2">
-                    <ShoppingCart size={20} className="text-blue-600 dark:text-blue-400" />
-                    Carrito
-                  </h3>
-                  <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-black px-2.5 py-1 rounded-full">
-                    {cartItems.length}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
+                    <ShoppingCart size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">
+                      Tu Carrito
+                    </h3>
+                    <p className="text-xs text-slate-400 font-medium">
+                      {cartItems.length} items seleccionados
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-400 font-medium pl-1">
-                  Resumen de tu pedido actual.
-                </p>
               </div>
 
-              {/* Close Button (Mobile Only) */}
+              {/* Close Button */}
               <button
                 onClick={() => setShowMobileCart(false)}
-                className="lg:hidden p-2 text-slate-400 hover:text-slate-600 bg-slate-100 dark:bg-slate-700 rounded-full"
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
               >
-                <ChevronRight size={20} />
+                <X size={24} />
               </button>
             </div>
 

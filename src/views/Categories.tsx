@@ -19,6 +19,10 @@ const Categories = () => {
     const [confirmConfig, setConfirmConfig] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+    // State for inline editing
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editName, setEditName] = useState("");
+
     const toggleExpand = (id: string) => {
         setExpanded(prev => {
             const next = new Set(prev);
@@ -26,6 +30,24 @@ const Categories = () => {
             else next.add(id);
             return next;
         });
+    };
+
+    const startEdit = (id: string, currentName: string) => {
+        setEditingId(id);
+        setEditName(currentName);
+    };
+
+    const saveEdit = async (id: string) => {
+        if (editName.trim() && editName !== tryGetName(id)) {
+            await handleUpdate(id, editName);
+        }
+        setEditingId(null);
+        setEditName("");
+    };
+
+    const tryGetName = (id: string) => {
+        const cat = categorias.find(c => c.id === id);
+        return cat ? cat.name : "";
     };
 
     // Initialize data
@@ -76,10 +98,13 @@ const Categories = () => {
     const handleUpdate = async (id: string, newName: string) => {
         try {
             await repository.updateCategoria(id, { name: newName });
-            await loadData();
+            const updatedCats = categorias.map(c => c.id === id ? { ...c, name: newName } : c);
+            setCategorias(updatedCats); // Optimistic update
+            // await loadData(); // No need to reload full data if optimistic works
             addToast('Categoría renombrada.', 'success');
         } catch (e) {
             addToast('Error al actualizar.', 'error');
+            loadData(); // Revert on error
         }
     };
 
@@ -143,18 +168,19 @@ const Categories = () => {
                     const stats = getStats(cat.id);
                     const subcats = categorias.filter(sub => sub.parent_id === cat.id);
                     const isExpanded = expanded.has(cat.id);
+                    const isEditingThis = editingId === cat.id;
 
                     return (
                         <div
                             key={cat.id}
                             className={`group rounded-xl border transition-all duration-300 overflow-hidden ${isExpanded
-                                    ? 'bg-white dark:bg-[#1e293b] border-blue-200 dark:border-blue-900 shadow-md ring-1 ring-blue-500/10'
-                                    : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] hover:border-blue-300 dark:hover:border-blue-700'
+                                ? 'bg-white dark:bg-[#1e293b] border-blue-200 dark:border-blue-900 shadow-md ring-1 ring-blue-500/10'
+                                : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] hover:border-blue-300 dark:hover:border-blue-700'
                                 }`}
                         >
                             {/* Parent Row */}
                             <div
-                                onClick={() => toggleExpand(cat.id)}
+                                onClick={() => !isEditingThis && toggleExpand(cat.id)}
                                 className={`flex items-center justify-between p-4 cursor-pointer select-none transition-colors ${isExpanded ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                                     }`}
                             >
@@ -165,14 +191,22 @@ const Categories = () => {
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-3">
                                             <div onClick={(e) => e.stopPropagation()}>
-                                                <EditableItem
-                                                    id={cat.id}
-                                                    name={cat.name}
-                                                    onUpdate={handleUpdate}
-                                                    className="font-bold text-base text-slate-700 dark:text-slate-200"
-                                                />
+                                                {isEditingThis ? (
+                                                    <input
+                                                        autoFocus
+                                                        value={editName}
+                                                        onChange={e => setEditName(e.target.value)}
+                                                        onBlur={() => saveEdit(cat.id)}
+                                                        onKeyDown={e => e.key === 'Enter' && saveEdit(cat.id)}
+                                                        className="font-bold text-base text-slate-800 dark:text-white bg-white dark:bg-slate-700 border dark:border-slate-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                ) : (
+                                                    <span className="font-bold text-base text-slate-700 dark:text-slate-200">
+                                                        {cat.name}
+                                                    </span>
+                                                )}
                                             </div>
-                                            {subcats.length > 0 && (
+                                            {subcats.length > 0 && !isEditingThis && (
                                                 <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full ${isExpanded ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
                                                     {subcats.length} sub
                                                 </span>
@@ -185,8 +219,9 @@ const Categories = () => {
                                         <Box size={14} className="text-blue-500" /> {stats} productos
                                     </span>
                                     <div className={`flex items-center gap-1 transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} onClick={(e) => e.stopPropagation()}>
+                                        <button onClick={() => startEdit(cat.id, cat.name)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Editar Nombre"><Edit2 size={16} /></button>
                                         <button onClick={() => { setNewValue(""); setModalConfig({ parentId: cat.id }); }} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title="Añadir Subcategoría"><Plus size={16} /></button>
-                                        <button onClick={() => handleDelete(cat.id, cat.name)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                        <button onClick={() => handleDelete(cat.id, cat.name)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors" title="Eliminar"><Trash2 size={16} /></button>
                                     </div>
                                 </div>
                             </div>
@@ -195,14 +230,35 @@ const Categories = () => {
                             {isExpanded && (
                                 <div className="border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-black/20 p-4 animate-in slide-in-from-top-2 duration-300">
                                     <div className="flex flex-wrap gap-3 pl-14">
-                                        {subcats.map(sub => (
-                                            <div key={sub.id} className="group/sub relative flex items-center gap-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-2 py-1.5 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all hover:-translate-y-0.5">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
-                                                <EditableItem id={sub.id} name={sub.name} onUpdate={handleUpdate} className="text-sm font-medium text-slate-600 dark:text-slate-300 mr-2" />
-                                                <span className="text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-800 px-1.5 rounded-md" title="Productos">{getStats(sub.id)}</span>
-                                                <button onClick={() => handleDelete(sub.id, sub.name)} className="ml-1 p-1 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-full transition-colors"><X size={12} /></button>
-                                            </div>
-                                        ))}
+                                        {subcats.map(sub => {
+                                            const isEditingSub = editingId === sub.id;
+                                            return (
+                                                <div key={sub.id} className="group/sub relative flex items-center gap-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-2 py-1.5 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all hover:-translate-y-0.5">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                                                    {isEditingSub ? (
+                                                        <input
+                                                            autoFocus
+                                                            value={editName}
+                                                            onChange={e => setEditName(e.target.value)}
+                                                            onBlur={() => saveEdit(sub.id)}
+                                                            onKeyDown={e => e.key === 'Enter' && saveEdit(sub.id)}
+                                                            className="text-sm font-medium text-slate-800 dark:text-white bg-slate-50 dark:bg-slate-700 border dark:border-slate-600 rounded px-1 outline-none w-32"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300 mr-2">{sub.name}</span>
+                                                    )}
+
+                                                    {!isEditingSub && (
+                                                        <span className="text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-800 px-1.5 rounded-md" title="Productos">{getStats(sub.id)}</span>
+                                                    )}
+
+                                                    <div className="flex items-center ml-1 border-l border-slate-100 dark:border-slate-700 pl-1">
+                                                        <button onClick={() => startEdit(sub.id, sub.name)} className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"><Edit2 size={12} /></button>
+                                                        <button onClick={() => handleDelete(sub.id, sub.name)} className="p-1 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-full transition-colors"><X size={12} /></button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
 
                                         <button
                                             onClick={() => { setNewValue(""); setModalConfig({ parentId: cat.id }); }}
@@ -269,49 +325,6 @@ const Categories = () => {
                 </Modal>
             )}
         </div>
-    );
-};
-
-// Helper Components
-interface EditableItemProps {
-    id: string;
-    name: string;
-    onUpdate: (id: string, name: string) => Promise<void>;
-    className?: string;
-}
-
-const EditableItem: React.FC<EditableItemProps> = ({ id, name, onUpdate, className }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [val, setVal] = useState(name);
-
-    const handleSave = () => {
-        if (val.trim() && val !== name) {
-            onUpdate(id, val);
-        }
-        setIsEditing(false);
-    };
-
-    if (isEditing) {
-        return (
-            <input
-                autoFocus
-                value={val}
-                onChange={e => setVal(e.target.value)}
-                onBlur={handleSave}
-                onKeyDown={e => e.key === 'Enter' && handleSave()}
-                className="bg-white dark:bg-slate-800 border dark:border-slate-600 rounded px-1 py-0.5 text-xs outline-none w-32 dark:text-white"
-            />
-        );
-    }
-
-    return (
-        <span
-            onDoubleClick={() => setIsEditing(true)}
-            className={`cursor-pointer hover:text-blue-500 truncate max-w-[150px] transition-colors ${className}`}
-            title={name}
-        >
-            {name}
-        </span>
     );
 };
 
