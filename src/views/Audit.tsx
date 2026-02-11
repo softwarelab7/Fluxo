@@ -60,6 +60,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [auditedValues, setAuditedValues] = useState<Record<string, { qty: number, status: EstadoItem }>>({});
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
 
   // Modal State
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -155,6 +156,14 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     );
   }, [missingItems, searchTerm]);
 
+  const filteredItems = useMemo(() => {
+    if (!itemSearchTerm) return items;
+    return items.filter(item =>
+      item.producto?.nombre.toLowerCase().includes(itemSearchTerm.toLowerCase()) ||
+      item.producto?.sku.toLowerCase().includes(itemSearchTerm.toLowerCase())
+    );
+  }, [items, itemSearchTerm]);
+
 
 
   const handleSelectPedido = async (p: Pedido) => {
@@ -164,6 +173,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
       setIsEditingHistory(false);
       setIsEditingOrder(false);
       setItemsToDelete([]);
+      setItemSearchTerm(''); // Reset search
       const pedidoItems = await repository.getPedidoItems(p.id);
       setItems(pedidoItems);
 
@@ -895,6 +905,18 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
               </div>
             )}
 
+            {/* Item Search Input */}
+            <div className="relative group w-full mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+              <input
+                type="text"
+                placeholder="Buscar en este pedido..."
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:outline-none transition-all placeholder:text-slate-400"
+                value={itemSearchTerm}
+                onChange={(e) => setItemSearchTerm(e.target.value)}
+              />
+            </div>
+
             <div className="flex justify-between items-end mb-2">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progreso</span>
               <span className={`text-xs font-black ${percent === 100 ? 'text-emerald-500 dark:text-emerald-400' : 'text-blue-500 dark:text-blue-400'}`}>
@@ -1018,7 +1040,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
       {/* Grid of Items */}
       <div className="grid grid-cols-1 gap-3">
-        {items.map(item => {
+        {filteredItems.map(item => {
           if (itemsToDelete.includes(item.id) && !isEditingOrder) return null; // Don't show if deleted (visual optimization, though we filter in save)
           // Actually, we want to show them crossed out if isEditingOrder
 

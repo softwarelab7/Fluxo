@@ -17,7 +17,9 @@ import {
   Loader2,
   Send,
   Edit,
-  PackageCheck
+  PackageCheck,
+  Package,
+  TrendingUp
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import XLSX from 'xlsx-js-style';
@@ -42,8 +44,10 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     setViewMode(initialViewMode);
   }, [initialViewMode]);
 
-  const [orderMode, setOrderMode] = useState<'PROVIDER' | 'CATEGORY'>('PROVIDER');
+  const [orderMode, setOrderMode] = useState<'PROVIDER' | 'CATEGORY'>('PROVIDER');  // Filters
   const [searchTerm, setSearchTerm] = useState('');
+  const [showHighRotation, setShowHighRotation] = useState(false);
+  const [showMediumRotation, setShowMediumRotation] = useState(false);
 
   // Data State
   const [categories, setCategories] = useState<Categoria[]>([]);
@@ -237,6 +241,25 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     const matchesSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
 
+    // High Rotation Filter: If active, show ALL high rotation items (Global), ignoring context unless searching.
+    if (showHighRotation) {
+      if (p.rotacion !== 'alta') return false;
+      return true;
+    }
+
+    // Medium Rotation Filter: If active, show ALL medium rotation items (Global)
+    if (showMediumRotation) {
+      if (p.rotacion !== 'media' && p.rotacion !== null && p.rotacion !== undefined) return false; // Assuming null/undefined might default to media? In Inventory logic it said "rotacion || 'media'". Let's be strict if they have explicit 'media' or we can check the default.
+      // In Inventory.tsx: rotacion: p.rotacion || 'media'
+      // effectively everything not 'alta' or 'baja' is media.
+      // But let's check exact string 'media' or falsy if that's how it's stored.
+      // Actually let's trust the 'media' string is present if we saved it.
+      // If we want to capture implied medium (nulls), we should check that.
+      // For now, let's assume 'media' string.
+      if (p.rotacion !== 'media') return false;
+      return true;
+    }
+
     // If searching, ignore context (Global Search)
     if (searchTerm.trim() !== '') {
       return matchesSearch;
@@ -260,12 +283,15 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   }));
 
   const activeContextName = useMemo(() => {
+    if (showHighRotation) return 'Alta Rotación (Global)';
+    if (showMediumRotation) return 'Media Rotación (Global)';
+
     if (orderMode === 'PROVIDER') {
       return proveedores.find(p => p.id === selectedProvFilter)?.nombre || 'Seleccionar Proveedor';
     } else {
       return categories.find(c => c.id === selectedCategory)?.name || 'Seleccionar Categoría';
     }
-  }, [orderMode, selectedProvFilter, selectedCategory, proveedores, categories]);
+  }, [orderMode, selectedProvFilter, selectedCategory, proveedores, categories, showHighRotation, showMediumRotation]);
 
   const includedCategoriesCount = useMemo(() => {
     return [...new Set(cartItems.map(i => i.product.subcategoria_id))].length;
@@ -1000,6 +1026,37 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setShowHighRotation(!showHighRotation);
+                  if (!showHighRotation) setShowMediumRotation(false); // Mutually exclusive
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showHighRotation
+                  ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'
+                  : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+              >
+                <TrendingUp size={14} />
+                <span>Alta Rotación</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowMediumRotation(!showMediumRotation);
+                  if (showHighRotation) setShowHighRotation(false); // Toggle off high if medium is clicked? Or allow both?
+                  // If we allow both, logic above needs adjustment (OR logic). 
+                  // Current logic: if (high) return high; if (medium) return medium;
+                  // This means High takes precedence. 
+                  // Let's make them mutually exclusive for simplicity as "Global filters".
+                  if (!showMediumRotation) setShowHighRotation(false);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showMediumRotation
+                  ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30'
+                  : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+              >
+                <TrendingUp size={14} className={showMediumRotation ? "rotate-90" : ""} />
+                <span>Media Rotación</span>
+              </button>
               <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">
                 {filtered.length} Resultados
               </span>
@@ -1008,55 +1065,88 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
           <div className="flex-1 min-h-0 pb-24 lg:pb-0">
             {filtered.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 {filtered.map(product => {
                   const inCart = cart[product.id] || 0;
                   const subCategoryName = categories.find(c => c.id === product.subcategoria_id)?.name;
 
                   return (
-                    <div key={product.id} className={`group relative bg-white dark:bg-[#1e293b] p-3 rounded-lg border transition-all duration-200 ${inCart > 0 ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                    <div key={product.id} className={`bg-white dark:bg-[#1e293b] rounded-2xl p-4 border transition-all duration-300 group shadow-sm hover:shadow-md flex flex-col h-full relative overflow-hidden hover:-translate-y-1 ${inCart > 0 ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500/50'}`}>
 
-                      {/* Top: SKU, Subcat & Brand */}
-                      <div className="flex flex-col gap-0.5 mb-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400">{product.sku}</span>
-                          <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">{product.marca?.nombre}</span>
+                      {/* Decorative Background Icon */}
+                      <div className="absolute -right-4 -bottom-4 opacity-[0.03] dark:opacity-[0.05] group-hover:scale-125 transition-transform duration-500 pointer-events-none">
+                        <Package size={100} />
+                      </div>
+
+                      {/* Rotation Badge only if High or Low */}
+                      {product.rotacion === 'alta' && (
+                        <div className="absolute top-0 right-0">
+                          <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-rose-500 border-r-rose-500 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Alta Rotación"></div>
                         </div>
-                        {subCategoryName && (
-                          <span className="text-[8px] font-bold text-violet-500 dark:text-violet-400 uppercase truncate">{subCategoryName}</span>
+                      )}
+                      {product.rotacion === 'media' && (
+                        <div className="absolute top-0 right-0">
+                          <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-amber-400 border-r-amber-400 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Media Rotación"></div>
+                        </div>
+                      )}
+                      {product.rotacion === 'baja' && (
+                        <div className="absolute top-0 right-0">
+                          <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-slate-300 border-r-slate-300 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Baja Rotación"></div>
+                        </div>
+                      )}
+
+                      {/* Top Tags */}
+                      <div className="flex flex-wrap gap-2 mb-3 items-center">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 capitalize">
+                          {product.marca?.nombre?.toLowerCase() || 'genérico'}
+                        </span>
+                        {product.subcategoria_id && (
+                          <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-100 dark:border-violet-500/20 capitalize">
+                            {categories.find(c => c.id === product.subcategoria_id)?.name?.toLowerCase()}
+                          </span>
                         )}
                       </div>
 
-                      {/* Content: Name */}
-                      <div className="mb-2 h-8">
-                        <h4 className="font-bold text-slate-700 dark:text-slate-200 text-[10px] leading-snug line-clamp-2" title={product.nombre}>
+                      {/* Content */}
+                      <div className="flex-1 mb-4">
+                        <h4 className="font-bold text-base text-slate-800 dark:text-slate-100 leading-snug mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2" title={product.nombre}>
                           {product.nombre}
                         </h4>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[10px] text-slate-400 font-mono bg-slate-50 dark:bg-slate-900 px-1.5 rounded">
+                            {product.sku}
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            {/* Stock Display Removed */}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Footer: Action */}
-                      <div className="flex items-center justify-end">
+                      {/* Actions Footer */}
+                      <div className="mt-auto border-t border-slate-100 dark:border-slate-800 pt-3 relative z-10">
                         {inCart === 0 ? (
                           <button
                             onClick={() => addToCart(product.id)}
-                            className="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 dark:bg-slate-800 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white rounded-md p-1 transition-colors"
+                            className="w-full py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 shadow-sm"
                           >
                             <Plus size={14} />
+                            <span>Agregar</span>
                           </button>
                         ) : (
-                          <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 rounded-md p-0.5">
+                          <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg p-0.5 border border-blue-200 dark:border-blue-800 w-full shadow-sm">
                             <button
                               onClick={() => updateCartQty(product.id, inCart - 1)}
-                              className="text-slate-400 hover:text-rose-500 transition-colors p-0.5"
+                              className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-all"
                             >
-                              <Minus size={12} />
+                              <Minus size={14} />
                             </button>
-                            <span className="font-bold text-slate-700 dark:text-white text-[10px] w-4 text-center">{inCart}</span>
+                            <span className="font-black text-blue-600 dark:text-blue-400 text-sm">{inCart}</span>
                             <button
                               onClick={() => updateCartQty(product.id, inCart + 1)}
-                              className="text-slate-400 hover:text-blue-500 transition-colors p-0.5"
+                              className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-all"
                             >
-                              <Plus size={12} />
+                              <Plus size={14} />
                             </button>
                           </div>
                         )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import GlassCard from '../components/GlassCard';
 import Modal from '../components/Modal';
-import { Layers, Plus, Edit2, Trash2, Check, X, Loader2, Search, ChevronRight, ChevronDown, AlertTriangle, Box } from 'lucide-react';
+import { Layers, Plus, Edit2, Trash2, Check, X, Loader2, Search, ChevronRight, ChevronDown, AlertTriangle, Box, MoreVertical, LayoutGrid } from 'lucide-react';
 import { repository } from '../services/repository';
 import { Categoria, Producto } from '../types';
 import { useToast } from '../components/Toast';
@@ -100,7 +100,6 @@ const Categories = () => {
             await repository.updateCategoria(id, { name: newName });
             const updatedCats = categorias.map(c => c.id === id ? { ...c, name: newName } : c);
             setCategorias(updatedCats); // Optimistic update
-            // await loadData(); // No need to reload full data if optimistic works
             addToast('Categoría renombrada.', 'success');
         } catch (e) {
             addToast('Error al actualizar.', 'error');
@@ -130,7 +129,11 @@ const Categories = () => {
 
     const filteredCats = categorias.filter(c => {
         if (!searchTerm) return !c.parent_id;
-        return !c.parent_id && c.name.toLowerCase().includes(searchTerm.toLowerCase());
+        // Also show parent if a subcategory matches search
+        return !c.parent_id && (
+            c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            categorias.some(sub => sub.parent_id === c.id && sub.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
     });
 
     if (loading) return <div className="p-10 text-center text-slate-400"><Loader2 className="animate-spin inline mr-2" /> Cargando...</div>;
@@ -139,7 +142,9 @@ const Categories = () => {
         <div className="space-y-6 animate-in fade-in duration-500 pb-20">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold dark:text-white">Categorías</h2>
+                    <h2 className="text-2xl font-bold dark:text-white flex items-center gap-2">
+                        <LayoutGrid className="text-blue-500" /> Categorías
+                    </h2>
                     <p className="text-slate-400 text-sm">Gestiona la estructura de tu inventario.</p>
                 </div>
                 <div className="flex gap-3 w-full md:w-auto">
@@ -163,78 +168,73 @@ const Categories = () => {
             </header>
 
 
-            <div className="flex flex-col gap-2">
-                {filteredCats.map((cat, idx) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredCats.map((cat) => {
                     const stats = getStats(cat.id);
                     const subcats = categorias.filter(sub => sub.parent_id === cat.id);
-                    const isExpanded = expanded.has(cat.id);
                     const isEditingThis = editingId === cat.id;
+                    const isExpanded = expanded.has(cat.id);
 
                     return (
-                        <div
+                        <GlassCard
                             key={cat.id}
-                            className={`group rounded-xl border transition-all duration-300 overflow-hidden ${isExpanded
-                                ? 'bg-white dark:bg-[#1e293b] border-blue-200 dark:border-blue-900 shadow-md ring-1 ring-blue-500/10'
-                                : 'bg-white dark:bg-[#1e293b] border-slate-200 dark:border-[#334155] hover:border-blue-300 dark:hover:border-blue-700'
-                                }`}
+                            className={`flex flex-col group hover:shadow-lg transition-all duration-300 border-slate-200 dark:border-slate-800 ${isExpanded ? 'row-span-2' : ''}`}
+                            noPadding
                         >
-                            {/* Parent Row */}
+                            {/* Card Header: Parent Category */}
                             <div
+                                className={`p-4 border-b border-transparent ${isExpanded ? 'border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5' : ''} rounded-t-2xl flex items-start gap-3 cursor-pointer select-none`}
                                 onClick={() => !isEditingThis && toggleExpand(cat.id)}
-                                className={`flex items-center justify-between p-4 cursor-pointer select-none transition-colors ${isExpanded ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                                    }`}
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-2 rounded-lg transition-all duration-300 ${isExpanded ? 'bg-blue-100 text-blue-600 rotate-90' : 'bg-slate-100 text-slate-400 rotate-0 dark:bg-slate-800'}`}>
-                                        <ChevronRight size={18} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-3">
-                                            <div onClick={(e) => e.stopPropagation()}>
-                                                {isEditingThis ? (
-                                                    <input
-                                                        autoFocus
-                                                        value={editName}
-                                                        onChange={e => setEditName(e.target.value)}
-                                                        onBlur={() => saveEdit(cat.id)}
-                                                        onKeyDown={e => e.key === 'Enter' && saveEdit(cat.id)}
-                                                        className="font-bold text-base text-slate-800 dark:text-white bg-white dark:bg-slate-700 border dark:border-slate-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
-                                                    />
-                                                ) : (
-                                                    <span className="font-bold text-base text-slate-700 dark:text-slate-200">
-                                                        {cat.name}
-                                                    </span>
-                                                )}
+                                <div className="min-w-0">
+                                    {isEditingThis ? (
+                                        <input
+                                            autoFocus
+                                            value={editName}
+                                            onChange={e => setEditName(e.target.value)}
+                                            onBlur={() => saveEdit(cat.id)}
+                                            onKeyDown={e => e.key === 'Enter' && saveEdit(cat.id)}
+                                            onClick={e => e.stopPropagation()}
+                                            className="w-full font-bold text-lg text-slate-800 dark:text-white bg-white dark:bg-slate-700 border dark:border-slate-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <div className={`p-1 rounded-md transition-colors ${isExpanded ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'text-slate-400 group-hover:text-blue-500'}`}>
+                                                <ChevronRight size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
                                             </div>
-                                            {subcats.length > 0 && !isEditingThis && (
-                                                <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full ${isExpanded ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
-                                                    {subcats.length} sub
-                                                </span>
-                                            )}
+                                            <h3 className="font-bold text-lg text-slate-800 dark:text-white truncate" title={cat.name}>
+                                                {cat.name}
+                                            </h3>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-4 mt-2 ml-7 text-xs text-slate-500 dark:text-slate-400">
+                                        <div className="flex items-center gap-1.5" title="Total de productos">
+                                            <Box size={14} className="text-blue-500/70" />
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{stats}</span>
+                                            <span className="font-normal">productos</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5" title="Total de subcategorías">
+                                            <Layers size={14} className="text-indigo-500/70" />
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{subcats.length}</span>
+                                            <span className="font-normal">subcategorías</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="text-xs font-medium text-slate-400 flex items-center gap-1.5 bg-white dark:bg-black/20 px-3 py-1.5 rounded-full border border-slate-100 dark:border-white/5 shadow-sm">
-                                        <Box size={14} className="text-blue-500" /> {stats} productos
-                                    </span>
-                                    <div className={`flex items-center gap-1 transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} onClick={(e) => e.stopPropagation()}>
-                                        <button onClick={() => startEdit(cat.id, cat.name)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Editar Nombre"><Edit2 size={16} /></button>
-                                        <button onClick={() => { setNewValue(""); setModalConfig({ parentId: cat.id }); }} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title="Añadir Subcategoría"><Plus size={16} /></button>
-                                        <button onClick={() => handleDelete(cat.id, cat.name)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors" title="Eliminar"><Trash2 size={16} /></button>
-                                    </div>
+                                <div className="flex gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                                    <button onClick={() => startEdit(cat.id, cat.name)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-blue-900/40 rounded-full transition-colors"><Edit2 size={18} /></button>
+                                    <button onClick={() => handleDelete(cat.id, cat.name)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-full transition-colors"><Trash2 size={18} /></button>
                                 </div>
                             </div>
 
-                            {/* Subcategories Row - Collapsible */}
+                            {/* Card Body: Subcategories */}
                             {isExpanded && (
-                                <div className="border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-black/20 p-4 animate-in slide-in-from-top-2 duration-300">
-                                    <div className="flex flex-wrap gap-3 pl-14">
-                                        {subcats.map(sub => {
+                                <div className="p-4 flex-1 flex flex-col gap-2 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="space-y-2 flex-1">
+                                        {subcats.length > 0 ? subcats.map(sub => {
                                             const isEditingSub = editingId === sub.id;
+                                            const subStats = getStats(sub.id);
                                             return (
-                                                <div key={sub.id} className="group/sub relative flex items-center gap-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-2 py-1.5 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all hover:-translate-y-0.5">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                                                <div key={sub.id} className="group/sub flex items-center justify-between text-sm py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                                     {isEditingSub ? (
                                                         <input
                                                             autoFocus
@@ -242,61 +242,67 @@ const Categories = () => {
                                                             onChange={e => setEditName(e.target.value)}
                                                             onBlur={() => saveEdit(sub.id)}
                                                             onKeyDown={e => e.key === 'Enter' && saveEdit(sub.id)}
-                                                            className="text-sm font-medium text-slate-800 dark:text-white bg-slate-50 dark:bg-slate-700 border dark:border-slate-600 rounded px-1 outline-none w-32"
+                                                            className="flex-1 font-medium text-slate-700 dark:text-white bg-white dark:bg-slate-700 border dark:border-slate-500 rounded px-1 outline-none text-xs"
                                                         />
                                                     ) : (
-                                                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300 mr-2">{sub.name}</span>
+                                                        <div className="flex items-center gap-2 overflow-hidden">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-300 flex-shrink-0"></div>
+                                                            <span className="text-slate-600 dark:text-slate-300 font-medium truncate">{sub.name}</span>
+                                                            <span className="text-[10px] text-slate-400">({subStats})</span>
+                                                        </div>
                                                     )}
 
-                                                    {!isEditingSub && (
-                                                        <span className="text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-800 px-1.5 rounded-md" title="Productos">{getStats(sub.id)}</span>
-                                                    )}
-
-                                                    <div className="flex items-center ml-1 border-l border-slate-100 dark:border-slate-700 pl-1">
-                                                        <button onClick={() => startEdit(sub.id, sub.name)} className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"><Edit2 size={12} /></button>
-                                                        <button onClick={() => handleDelete(sub.id, sub.name)} className="p-1 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-full transition-colors"><X size={12} /></button>
+                                                    <div className="flex gap-1 opacity-0 group-hover/sub:opacity-100 transition-opacity">
+                                                        <button onClick={() => startEdit(sub.id, sub.name)} className="p-1 text-slate-300 hover:text-blue-500 transition-colors"><Edit2 size={12} /></button>
+                                                        <button onClick={() => handleDelete(sub.id, sub.name)} className="p-1 text-slate-300 hover:text-rose-500 transition-colors"><X size={12} /></button>
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-
-                                        <button
-                                            onClick={() => { setNewValue(""); setModalConfig({ parentId: cat.id }); }}
-                                            className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 border-2 border-blue-200/50 dark:border-blue-800/30 border-dashed rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 transition-all active:scale-95"
-                                        >
-                                            <Plus size={14} /> Nueva
-                                        </button>
+                                            )
+                                        }) : (
+                                            <div className="text-center py-4 text-slate-400 text-xs italic">
+                                                Sin subcategorías
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {subcats.length === 0 && (
-                                        <div className="pl-14 pt-2 text-sm text-slate-400 italic flex items-center gap-2">
-                                            <span>Esta categoría está vacía.</span>
-                                        </div>
-                                    )}
+                                    <button
+                                        onClick={() => { setNewValue(""); setModalConfig({ parentId: cat.id }); }}
+                                        className="w-full mt-2 py-2 border-t border-slate-100 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1 rounded-b-lg"
+                                    >
+                                        <Plus size={14} /> Nueva Subcategoría
+                                    </button>
                                 </div>
                             )}
-                        </div>
+                        </GlassCard>
                     );
                 })}
             </div>
 
             {/* Input Modal */}
             {modalConfig && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                    <GlassCard hoverEffect={false} className="w-full max-w-sm bg-white dark:bg-[#1e293b] p-4 border-slate-200 dark:border-slate-700">
-                        <div className="flex justify-between mb-4">
-                            <h3 className="font-bold text-slate-800 dark:text-white">{modalConfig.parentId ? 'Nueva Subcategoría' : 'Nueva Categoría'}</h3>
-                            <button onClick={() => setModalConfig(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16} /></button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+                    <GlassCard hoverEffect={false} className="w-full max-w-sm bg-white dark:bg-[#1e293b] p-6 border-slate-200 dark:border-slate-700 shadow-xl">
+                        <div className="flex justify-between mb-6">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                {modalConfig.parentId ? <Layers size={20} className="text-blue-500" /> : <LayoutGrid size={20} className="text-blue-500" />}
+                                {modalConfig.parentId ? 'Nueva Subcategoría' : 'Nueva Categoría'}
+                            </h3>
+                            <button onClick={() => setModalConfig(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={18} /></button>
                         </div>
-                        <form onSubmit={handleAdd} className="flex gap-2">
-                            <input
-                                autoFocus
-                                value={newValue}
-                                onChange={e => setNewValue(e.target.value)}
-                                className="flex-1 input-premium px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Nombre..."
-                            />
-                            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors">Crear</button>
+                        <form onSubmit={handleAdd} className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1 block">Nombre</label>
+                                <input
+                                    autoFocus
+                                    value={newValue}
+                                    onChange={e => setNewValue(e.target.value)}
+                                    className="w-full input-premium px-4 py-3 text-sm rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    placeholder="Ej. Suspensión, Frenos..."
+                                />
+                            </div>
+                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-95">
+                                Crear
+                            </button>
                         </form>
                     </GlassCard>
                 </div>
@@ -311,16 +317,16 @@ const Categories = () => {
                     maxWidth="max-w-md"
                     footer={
                         <>
-                            <button onClick={() => setConfirmConfig(null)} className="px-3 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Cancelar</button>
-                            <button onClick={confirmConfig.onConfirm} className="px-3 py-1.5 text-sm font-bold bg-rose-500 hover:bg-rose-600 text-white rounded-lg transition-colors">Eliminar</button>
+                            <button onClick={() => setConfirmConfig(null)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
+                            <button onClick={confirmConfig.onConfirm} className="px-4 py-2 text-sm font-bold bg-rose-500 hover:bg-rose-600 text-white rounded-lg transition-colors shadow-lg shadow-rose-500/20">Eliminar</button>
                         </>
                     }
                 >
-                    <div className="text-center p-4">
-                        <div className="bg-rose-100 dark:bg-rose-900/30 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <AlertTriangle size={24} className="text-rose-500 dark:text-rose-400" />
+                    <div className="text-center p-6">
+                        <div className="bg-rose-100 dark:bg-rose-900/30 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle size={28} className="text-rose-500 dark:text-rose-400" />
                         </div>
-                        <p className="text-slate-600 dark:text-slate-300">{confirmConfig.message}</p>
+                        <p className="text-slate-600 dark:text-slate-300 font-medium">{confirmConfig.message}</p>
                     </div>
                 </Modal>
             )}

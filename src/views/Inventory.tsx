@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import GlassCard from '../components/GlassCard';
 import {
   Search,
@@ -46,6 +46,8 @@ const Inventory = () => {
   const [orderMode, setOrderMode] = useState<'PROVIDER' | 'CATEGORY'>('CATEGORY');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedProvFilter, setSelectedProvFilter] = useState<string | null>(null);
+  const [showHighRotation, setShowHighRotation] = useState(false);
+  const [showMediumRotation, setShowMediumRotation] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const { addToast } = useToast();
 
@@ -55,7 +57,7 @@ const Inventory = () => {
     marca_id: '',
     subcategoria_id: '',
     stock_actual: 0,
-    stock_minimo: 5,
+    stock_minimo: 0,
     rotacion: 'media',
     preferred_supplier_id: '' // added for consistency
   });
@@ -338,12 +340,23 @@ const Inventory = () => {
   // Enhanced Filtering Logic
   const filtered = products.filter(p => {
     const matchesSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.marca?.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+      p.sku.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Global Search overrides context (optional, but requested behavior in Orders)
+    // If searching, ignore context
     if (searchTerm.trim() !== '') {
       return matchesSearch;
+    }
+
+    // High Rotation Filter (Global)
+    if (showHighRotation) {
+      if (p.rotacion !== 'alta') return false;
+      return true;
+    }
+
+    // Medium Rotation Filter (Global)
+    if (showMediumRotation) {
+      if (p.rotacion !== 'media') return false;
+      return true;
     }
 
     let matchesContext = false;
@@ -361,6 +374,17 @@ const Inventory = () => {
 
     return matchesContext;
   });
+
+
+  // Derived State for Context Title
+  const activeContextName = useMemo(() => {
+    if (showHighRotation) return 'Alta Rotación (Global)';
+    if (showMediumRotation) return 'Media Rotación (Global)';
+
+    return orderMode === 'PROVIDER'
+      ? (proveedores.find(p => p.id === selectedProvFilter)?.nombre || 'Todos los Proveedores')
+      : (categorias.find(c => c.id === selectedCategory)?.name || 'Todas las Categorías');
+  }, [orderMode, selectedProvFilter, selectedCategory, proveedores, categorias, showHighRotation, showMediumRotation]);
 
   if (loading) {
     return (
@@ -404,10 +428,7 @@ const Inventory = () => {
     );
   }
 
-  // Derived State for Context Title
-  const activeContextName = orderMode === 'PROVIDER'
-    ? (proveedores.find(p => p.id === selectedProvFilter)?.nombre || 'Todos los Proveedores')
-    : (categorias.find(c => c.id === selectedCategory)?.name || 'Todas las Categorías');
+
 
   return (
     <>
@@ -564,6 +585,34 @@ const Inventory = () => {
               </div>
 
               <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setShowHighRotation(!showHighRotation);
+                      if (!showHighRotation) setShowMediumRotation(false);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showHighRotation
+                      ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                  >
+                    <TrendingUp size={14} />
+                    <span>Alta Rotación</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMediumRotation(!showMediumRotation);
+                      if (!showMediumRotation) setShowHighRotation(false);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showMediumRotation
+                      ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                  >
+                    <TrendingUp size={14} className={showMediumRotation ? "rotate-90" : ""} />
+                    <span>Media Rotación</span>
+                  </button>
+                </div>
                 <div className="text-right">
                   <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
                     {activeContextName}
@@ -586,10 +635,15 @@ const Inventory = () => {
                       <Package size={100} />
                     </div>
 
-                    {/* Rotation Badge only if High or Low */}
+                    {/* Rotation Badge only if High or Low or Medium */}
                     {p.rotacion === 'alta' && (
                       <div className="absolute top-0 right-0">
-                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-amber-400 border-r-amber-400 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Alta Rotación"></div>
+                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-rose-500 border-r-rose-500 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Alta Rotación"></div>
+                      </div>
+                    )}
+                    {p.rotacion === 'media' && (
+                      <div className="absolute top-0 right-0">
+                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-amber-400 border-r-amber-400 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Media Rotación"></div>
                       </div>
                     )}
                     {p.rotacion === 'baja' && (
@@ -620,11 +674,9 @@ const Inventory = () => {
                           {p.sku}
                         </span>
 
+
                         <div className="flex items-center gap-1.5">
-                          <div className={`w-1.5 h-1.5 rounded-full ${p.stock_actual <= p.stock_minimo ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                          <span className={`text-[10px] font-bold ${p.stock_actual <= p.stock_minimo ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                            {p.stock_actual <= 0 ? 'Sin Stock' : `${p.stock_actual} Unid.`}
-                          </span>
+                          {/* Stock Removed */}
                         </div>
                       </div>
                     </div>
@@ -659,8 +711,8 @@ const Inventory = () => {
           </div>
 
 
-        </div>
-      </div>
+        </div >
+      </div >
 
       {/* Add Modal */}
       {
@@ -756,16 +808,9 @@ const Inventory = () => {
                         className="text-sm h-11"
                       />
                     </div>
-                    <div className="col-span-3 md:col-span-1">
-                      <label className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 block">Inicial</label>
-                      <input type="number" value={newProduct.stock_actual} onChange={e => setNewProduct({ ...newProduct, stock_actual: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-lg px-2 h-11 text-sm font-bold text-center focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-700 dark:text-white" />
-                    </div>
-                    <div className="col-span-3 md:col-span-1">
-                      <label className="text-xs font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider mb-2 block">Mínimo</label>
-                      <input type="number" value={newProduct.stock_minimo} onChange={e => setNewProduct({ ...newProduct, stock_minimo: parseInt(e.target.value) })} className="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-lg px-2 h-11 text-sm font-bold text-center focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-slate-700 dark:text-white" />
-                    </div>
+                    {/* Stock Inputs Removed */}
 
-                    <div className="col-span-6 md:col-span-4 flex items-center gap-4 pl-4 border-l border-slate-100 dark:border-white/5 h-11">
+                    <div className="col-span-6 md:col-span-6 flex items-center gap-4 pl-4 border-l border-slate-100 dark:border-white/5 h-11">
                       <div className="flex-1">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Rotación</label>
                         <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 h-11">
@@ -786,7 +831,7 @@ const Inventory = () => {
                           <button
                             type="button"
                             onClick={() => setNewProduct({ ...newProduct, rotacion: 'alta' })}
-                            className={`flex-1 rounded-md text-xs font-bold transition-all ${newProduct.rotacion === 'alta' ? 'bg-white dark:bg-slate-700 text-amber-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            className={`flex-1 rounded-md text-xs font-bold transition-all ${newProduct.rotacion === 'alta' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                           >
                             Alta
                           </button>
