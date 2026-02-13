@@ -263,5 +263,25 @@ export const repository = {
 
         const { error } = await supabase.from('pedidos').delete().eq('id', id);
         if (error) throw error;
+    },
+
+    async getProductHistory(productId: string) {
+        const { data, error } = await supabase
+            .from('pedido_items')
+            .select(`
+                *,
+                pedido:pedidos!pedido_id(
+                    *,
+                    proveedor:proveedores(*)
+                )
+            `)
+            .eq('producto_id', productId)
+            .order('created_at', { ascending: false }); // Assuming created_at exists on items or sort by pedido date manually
+
+        if (error) throw error;
+        // Sort manually if needed or relying on DB sort
+        return data.sort((a: any, b: any) =>
+            new Date(b.pedido?.fecha_creacion || 0).getTime() - new Date(a.pedido?.fecha_creacion || 0).getTime()
+        );
     }
 };

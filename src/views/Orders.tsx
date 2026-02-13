@@ -241,30 +241,12 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     const matchesSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // High Rotation Filter: If active, show ALL high rotation items (Global), ignoring context unless searching.
-    if (showHighRotation) {
-      if (p.rotacion !== 'alta') return false;
-      return true;
-    }
-
-    // Medium Rotation Filter: If active, show ALL medium rotation items (Global)
-    if (showMediumRotation) {
-      if (p.rotacion !== 'media' && p.rotacion !== null && p.rotacion !== undefined) return false; // Assuming null/undefined might default to media? In Inventory logic it said "rotacion || 'media'". Let's be strict if they have explicit 'media' or we can check the default.
-      // In Inventory.tsx: rotacion: p.rotacion || 'media'
-      // effectively everything not 'alta' or 'baja' is media.
-      // But let's check exact string 'media' or falsy if that's how it's stored.
-      // Actually let's trust the 'media' string is present if we saved it.
-      // If we want to capture implied medium (nulls), we should check that.
-      // For now, let's assume 'media' string.
-      if (p.rotacion !== 'media') return false;
-      return true;
-    }
-
     // If searching, ignore context (Global Search)
     if (searchTerm.trim() !== '') {
       return matchesSearch;
     }
 
+    // 2. Check Context (Provider or Category)
     let matchesContext = false;
     if (orderMode === 'PROVIDER') {
       matchesContext = p.preferred_supplier_id === selectedProvFilter;
@@ -274,7 +256,18 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       matchesContext = p.subcategoria_id === selectedCategory || productCat?.parent_id === selectedCategory;
     }
 
-    return matchesContext;
+    if (!matchesContext) return false;
+
+    // 3. Apply Rotation Filter (AND logic)
+    if (showHighRotation) {
+      if (p.rotacion !== 'alta') return false;
+    }
+
+    if (showMediumRotation) {
+      if (p.rotacion !== 'media') return false;
+    }
+
+    return true;
   });
 
   const cartItems = Object.entries(cart).map(([id, qty]) => ({
@@ -283,14 +276,14 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   }));
 
   const activeContextName = useMemo(() => {
-    if (showHighRotation) return 'Alta Rotación (Global)';
-    if (showMediumRotation) return 'Media Rotación (Global)';
+    const contextName = orderMode === 'PROVIDER'
+      ? (proveedores.find(p => p.id === selectedProvFilter)?.nombre || 'Seleccionar Proveedor')
+      : (categories.find(c => c.id === selectedCategory)?.name || 'Seleccionar Categoría');
 
-    if (orderMode === 'PROVIDER') {
-      return proveedores.find(p => p.id === selectedProvFilter)?.nombre || 'Seleccionar Proveedor';
-    } else {
-      return categories.find(c => c.id === selectedCategory)?.name || 'Seleccionar Categoría';
-    }
+    if (showHighRotation) return `${contextName} (Alta Rotación)`;
+    if (showMediumRotation) return `${contextName} (Media Rotación)`;
+
+    return contextName;
   }, [orderMode, selectedProvFilter, selectedCategory, proveedores, categories, showHighRotation, showMediumRotation]);
 
   const includedCategoriesCount = useMemo(() => {

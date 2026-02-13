@@ -31,10 +31,10 @@ import Modal from '../components/Modal';
 import { Skeleton } from '../components/Skeleton';
 
 interface DashboardProps {
-  onNavigate: (view: string) => void;
+  onNavigate: (view: string, params?: any) => void;
 }
 
-const StatCard = ({ title, value, icon: Icon, color, trend }: any) => {
+const StatCard = ({ title, value, icon: Icon, color, trend, onClick }: any) => {
   // Extract base color styles
   let styles = {
     bgFrom: "from-blue-500/5",
@@ -79,7 +79,10 @@ const StatCard = ({ title, value, icon: Icon, color, trend }: any) => {
   }
 
   return (
-    <GlassCard className={`flex flex-col justify-between h-full group transition-all duration-300 shadow-sm hover:shadow-lg relative overflow-hidden bg-gradient-to-br ${styles.bgFrom} ${styles.bgTo} to-transparent border-slate-200 dark:border-slate-800 ${styles.border}`}>
+    <GlassCard
+      onClick={onClick}
+      className={`flex flex-col justify-between h-full group transition-all duration-300 shadow-sm hover:shadow-lg relative overflow-hidden bg-gradient-to-br ${styles.bgFrom} ${styles.bgTo} to-transparent border-slate-200 dark:border-slate-800 ${styles.border} ${onClick ? 'cursor-pointer' : ''}`}
+    >
 
       {/* Decorative Background Icon */}
       <div className={`absolute -bottom-4 -right-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500 pointer-events-none`}>
@@ -147,6 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         'Baja': products.filter(p => p.rotacion === 'baja' || !p.rotacion).length
       };
 
+      // Filter out empty counts to make chart cleaner? Or keep for completeness. Kept.
       const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
 
       // 2. Calculate Brand Distribution (Top 5)
@@ -184,7 +188,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setShowReportModal(true);
   };
 
+  const handleBarClick = (data: any) => {
+    if (data && data.activePayload && data.activePayload.length > 0) {
+      const rotationName = data.activePayload[0].payload.name;
+      const rotation = rotationName === 'Alta' ? 'alta' : rotationName === 'Media' ? 'media' : 'baja';
+      onNavigate('inventory', { rotation });
+    }
+  };
+
   if (loading) {
+    // ... existing skeleton code ...
     return (
       <div className="space-y-8 animate-pulse">
         {/* Header Skeleton */}
@@ -248,6 +261,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           icon={TrendingUp}
           color="bg-rose-500"
           trend="Prioridad"
+          onClick={() => onNavigate('inventory', { rotation: 'alta' })}
         />
         <StatCard
           title={stats.inTransitCount > 0 ? "En Camino" : "Borradores"}
@@ -255,12 +269,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           icon={stats.inTransitCount > 0 ? Truck : Clock}
           color={stats.inTransitCount > 0 ? "bg-blue-500" : "bg-amber-500"}
           trend={stats.inTransitCount > 0 ? "Por Recibir" : undefined}
+          onClick={() => onNavigate(stats.inTransitCount > 0 ? 'audit' : 'pending-orders')}
         />
         <StatCard
           title="Total Referencias"
           value={stats.totalProducts}
           icon={Box}
           color="bg-blue-500"
+          onClick={() => onNavigate('inventory')}
         />
       </div>
 
@@ -271,7 +287,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Top - Alta Rotación</h3>
               <button
-                onClick={() => onNavigate('inventory')}
+                onClick={() => onNavigate('inventory', { rotation: 'alta' })}
                 className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:text-blue-500 dark:hover:text-blue-300 transition-colors flex items-center gap-1 group"
               >
                 Ver todo <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -289,7 +305,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-[#334155]">
                   {stats.highRotationItems.slice(0, 5).map(p => (
-                    <tr key={p.id} className="group hover:bg-slate-50 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-lg">
+                    <tr key={p.id} onClick={() => onNavigate('inventory', { rotation: 'alta' })} className="group hover:bg-slate-50 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-lg cursor-pointer">
                       <td className="py-2 pl-4">
                         <div className="flex items-center space-x-3">
                           <div className="p-2.5 bg-rose-500/10 rounded-xl group-hover:bg-rose-500/20 transition-colors group-hover:scale-110 duration-300">
@@ -353,6 +369,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       key={`cell-${index}`}
                       fill={['#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'][index % 6]}
                       className="stroke-white dark:stroke-slate-800 stroke-[2px]"
+                      cursor="pointer"
+                      onClick={() => onNavigate('inventory')}
                     />
                   ))}
                 </Pie>
@@ -380,7 +398,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <h3 className="text-sm font-bold mb-2 text-slate-900 dark:text-slate-100">Distribución por Rotación</h3>
           <div className="w-full h-36">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.statusData}>
+              <BarChart data={stats.statusData} onClick={handleBarClick}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
                 <XAxis dataKey="name" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
@@ -388,7 +406,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                   contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
                 />
-                <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} cursor="pointer">
                   {stats.statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.name === 'Alta' ? '#f43f5e' : entry.name === 'Media' ? '#f59e0b' : '#64748b'} />
                   ))}

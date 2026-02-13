@@ -23,6 +23,7 @@ import {
   Unlock,
   Trash2,
   Replace,
+  RotateCcw,
   PlusCircle
 } from 'lucide-react';
 import { repository } from '../services/repository';
@@ -254,6 +255,26 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
         } catch (error) {
           console.error("Error deleting order:", error);
           addToast("Error al eliminar el registro.", 'error');
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+    );
+  };
+
+  const handleReturnToPending = (pedido: Pedido) => {
+    openConfirmModal(
+      'Regresar a Pendientes',
+      '¿Estás seguro de regresar este pedido a "Pendientes"? El estado cambiará a "En Camino" y podrás auditarlo nuevamente.',
+      async () => {
+        try {
+          setIsProcessing(true);
+          await repository.updatePedido(pedido.id, { estado: 'En Camino' });
+          addToast("Pedido regresado a pendientes.", 'success');
+          await loadPedidos();
+        } catch (error) {
+          console.error("Error returning to pending:", error);
+          addToast("Error al regresar el pedido.", 'error');
         } finally {
           setIsProcessing(false);
         }
@@ -778,6 +799,15 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                           {new Date(p.fecha_recepcion).toLocaleDateString()}
                         </p>
                         <div className="flex items-center gap-2">
+                          {/* Return to Pending Button */}
+                          <button
+                            onClick={() => handleReturnToPending(p)}
+                            className="p-1.5 rounded-lg hover:bg-amber-500/10 text-slate-400 hover:text-amber-500 transition-colors"
+                            title="Regresar a Pendientes"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+
                           {/* Delete Button */}
                           <button
                             onClick={() => handleMoveToTrash(p)}

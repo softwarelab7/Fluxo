@@ -16,6 +16,7 @@ import { Users } from './views/Users';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('dashboard');
+  const [viewParams, setViewParams] = useState<any>(null); // State for passing params between views
   const [session, setSession] = useState(null);
   const [userRole, setUserRole] = useState<'admin' | 'employee' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,12 +60,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleNavigate = (view: string, params?: any) => {
+    setActiveView(view);
+    if (params) {
+      setViewParams(params);
+    } else {
+      setViewParams(null); // Reset if no params passed (or keep? usually reset)
+    }
+  };
+
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard onNavigate={setActiveView} />;
+        return <Dashboard onNavigate={handleNavigate} />;
       case 'inventory':
-        return <Inventory />;
+        return <Inventory initialFilters={viewParams} />;
       case 'orders':
         return <Orders initialViewMode="CREATE" />;
       case 'pending-orders':
@@ -82,7 +92,7 @@ const App: React.FC = () => {
       case 'users':
         return <Users />;
       default:
-        return <Dashboard onNavigate={setActiveView} />;
+        return <Dashboard onNavigate={handleNavigate} />;
     }
   };
 
