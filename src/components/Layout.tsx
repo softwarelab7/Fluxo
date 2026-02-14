@@ -99,11 +99,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
       let stockCount = 0;
 
       items.forEach((i: any) => {
-        // Double check filter here just in case, though query handles it
-        if (i.estado_item === 'Incompleto' || i.estado_item === 'No llegó') count++;
-        if (i.estado_item === 'Agotado') stockCount++;
-      });
+        // Faltantes (No llegó / Incompleto): Solo pedidos FINALIZADOS (Auditado)
+        if ((i.estado_item === 'Incompleto' || i.estado_item === 'No llegó') && i.pedido?.estado === 'Auditado') {
+          count++;
+        }
 
+        // Agotados: Pedidos FINALIZADOS O EN CAMINO (Auditado / En Camino)
+        // El usuario quiere ver agotados en tiempo real mientras audita
+        if (i.estado_item === 'Agotado') {
+          stockCount++;
+        }
+      });
       setMissingCount(count);
       setOutOfStockCount(stockCount);
     } catch (e) {
