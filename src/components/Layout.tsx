@@ -92,7 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
   const checkMissingItems = async () => {
     try {
       const pedidos = await repository.getPedidos();
-      const auditados = pedidos.filter(p => p.estado === 'Auditado');
+      const auditados = pedidos.filter(p => p.estado === 'Auditado' || p.estado === 'En Camino');
       let count = 0;
       let stockCount = 0;
 

@@ -19,7 +19,8 @@ const OutOfStock: React.FC = () => {
         try {
             setLoading(true);
             const pedidos = await repository.getPedidos();
-            const auditados = pedidos.filter(p => p.estado === 'Auditado');
+            // Include 'Auditado' and 'En Camino' (since we now allow saving partial progress)
+            const auditados = pedidos.filter(p => p.estado === 'Auditado' || p.estado === 'En Camino');
             const items: { item: PedidoItem, pedido: Pedido }[] = [];
 
             await Promise.all(auditados.map(async (p) => {

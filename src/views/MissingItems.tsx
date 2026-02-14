@@ -20,8 +20,8 @@ const MissingItems: React.FC = () => {
         try {
             setLoading(true);
             const pedidos = await repository.getPedidos();
-            // Filter orders that are already audited
-            const auditados = pedidos.filter(p => p.estado === 'Auditado');
+            // Filter orders that are already audited or in progress
+            const auditados = pedidos.filter(p => p.estado === 'Auditado' || p.estado === 'En Camino');
 
             const missing: { item: PedidoItem, pedido: Pedido }[] = [];
 
