@@ -283,5 +283,21 @@ export const repository = {
         return data.sort((a: any, b: any) =>
             new Date(b.pedido?.fecha_creacion || 0).getTime() - new Date(a.pedido?.fecha_creacion || 0).getTime()
         );
+    },
+
+    async getActionItems() {
+        const { data, error } = await supabase
+            .from('pedido_items')
+            .select(`
+                estado_item,
+                pedido:pedidos!pedido_id(
+                    estado
+                )
+            `)
+            .in('estado_item', ['No llegó', 'Incompleto', 'Agotado'])
+            .in('pedido.estado', ['Auditado', 'En Camino']);
+
+        if (error) throw error;
+        return data as { estado_item: 'No llegó' | 'Incompleto' | 'Agotado' }[];
     }
 };

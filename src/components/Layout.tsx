@@ -91,18 +91,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
 
   const checkMissingItems = async () => {
     try {
-      const pedidos = await repository.getPedidos();
-      const auditados = pedidos.filter(p => p.estado === 'Auditado' || p.estado === 'En Camino');
+      // Use the new optimized method to get all action items in one request
+      // @ts-ignore
+      const items = await repository.getActionItems();
+
       let count = 0;
       let stockCount = 0;
 
-      await Promise.all(auditados.map(async (p) => {
-        const items = await repository.getPedidoItems(p.id);
-        items.forEach(i => {
-          if (i.estado_item === 'Incompleto' || i.estado_item === 'No llegó') count++;
-          if (i.estado_item === 'Agotado') stockCount++;
-        });
-      }));
+      items.forEach((i: any) => {
+        // Double check filter here just in case, though query handles it
+        if (i.estado_item === 'Incompleto' || i.estado_item === 'No llegó') count++;
+        if (i.estado_item === 'Agotado') stockCount++;
+      });
+
       setMissingCount(count);
       setOutOfStockCount(stockCount);
     } catch (e) {
