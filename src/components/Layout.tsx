@@ -141,36 +141,27 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
   const pageTitle = menuItems.find(item => item.id === activeView)?.label || 'Fluxo';
 
   const navItems = [...menuItems];
-  if (missingCount > 0) {
-    navItems.push({
-      id: 'missing-items',
-      label: 'Faltantes',
-      icon: AlertTriangle,
-      // @ts-ignore
-      badge: missingCount,
-      // @ts-ignore
-      variant: 'alert'
-    });
-  }
+  // Faltantes
+  navItems.push({
+    id: 'missing-items',
+    label: 'Faltantes',
+    icon: AlertTriangle,
+    // @ts-ignore
+    badge: missingCount,
+    // @ts-ignore
+    variant: 'alert'
+  });
 
-  // Always show or only if count > 0? User said "tengamos una seccion de agotados", implying permanent or conditional.
-  // I'll make it always visible if count > 0, or maybe always visible?
-  // Usually "Faltantes" is an alert. "Agotados" is a report.
-  // Let's make it conditional for now to keep menu clean, similar to missing.
-  if (outOfStockCount > 0) {
-    navItems.push({
-      id: 'out-of-stock',
-      label: 'Agotados',
-      icon: Package, // PackageX not imported in Layout yet, need to import it or use another icon. 
-      // Wait, Package is used for Inventory. 
-      // Let's use ClipboardList or something else.
-      // Or import PackageX.
-      // @ts-ignore
-      badge: outOfStockCount,
-      // @ts-ignore
-      variant: 'default'
-    });
-  }
+  // Agotados
+  navItems.push({
+    id: 'out-of-stock',
+    label: 'Agotados',
+    icon: PackageX,
+    // @ts-ignore
+    badge: outOfStockCount,
+    // @ts-ignore
+    variant: 'default'
+  });
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-[#020617] transition-colors duration-300">
