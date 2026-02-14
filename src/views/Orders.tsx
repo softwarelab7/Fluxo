@@ -67,6 +67,34 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   // Track expanded categories for accordion behavior
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
+  // Export State
+  const AVAILABLE_COLUMNS = [
+    { id: 'sku', label: 'REFERENCIA' },
+    { id: 'producto', label: 'PRODUCTO / VEHÍCULO' },
+    { id: 'marca', label: 'MARCA' },
+    { id: 'categoria', label: 'CATEGORÍA' },
+    { id: 'subcategoria', label: 'SUBCATEGORÍA' },
+    { id: 'cantidad', label: 'CANTIDAD' },
+  ];
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [orderToExport, setOrderToExport] = useState<Pedido | null>(null);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(AVAILABLE_COLUMNS.map(c => c.id));
+
+  const openExportModal = (order: Pedido) => {
+    setOrderToExport(order);
+    setSelectedColumns(AVAILABLE_COLUMNS.map(c => c.id));
+    setShowExportModal(true);
+  };
+
+  const toggleColumn = (columnId: string) => {
+    setSelectedColumns(prev =>
+      prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
+
   const [cart, setCart] = useState<Record<string, number>>({});
   const [showMobileCart, setShowMobileCart] = useState(false);
 
@@ -420,19 +448,26 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     }
   };
 
-  const handleDownloadExcel = async (order: Pedido) => {
+  const handleDownloadExcel = async () => {
+    if (!orderToExport) return;
+    const order = orderToExport;
+    console.log("Starting Excel export for order:", order.id);
+
     try {
       setLoading(true);
       const items = await repository.getPedidoItems(order.id);
+      console.log("Items fetched:", items.length);
 
       // Filename/Title based on Brand or custom Title
       const firstBrand = items[0]?.producto?.marca?.nombre?.toUpperCase() || 'GENERAL';
       const cleanBrand = firstBrand.replace(/[^a-zA-Z0-9ñÑ]/g, '');
 
       // Use custom title if available, otherwise fallback to standard naming
-      const title = order.titulo?.toUpperCase() || `PEDIDOS ${firstBrand}`;
+      const title = ['', order.titulo?.toUpperCase() || `PEDIDOS ${firstBrand}`];
 
-      const headers = ['REFERENCIA', 'PRODUCTO / VEHÍCULO', 'MARCA', 'CATEGORÍA', 'SUBCATEGORÍA', 'CANTIDAD'];
+      // Get Headers based on selection
+      const activeCols = AVAILABLE_COLUMNS.filter(c => selectedColumns.includes(c.id));
+      const headers = ['', ...activeCols.map(c => c.label)];
 
       const rows = items.map(item => {
         // Resolve Category Hierarchy
@@ -444,39 +479,39 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         const categoryName = parentCat?.name || (subCat?.parent_id ? 'Desconocida' : subCat?.name);
         const subCategoryName = parentCat ? subCat?.name : '';
 
-        return [
-          item.producto?.sku,
-          item.producto?.nombre,
-          item.producto?.marca?.nombre,
-          categoryName,
-          subCategoryName,
-          item.cantidad_pedida
-        ];
+        // Build row data based on selected columns
+        const rowData = [];
+        rowData.push(''); // Empty Col A
+
+        if (selectedColumns.includes('sku')) rowData.push(item.producto?.sku);
+        if (selectedColumns.includes('producto')) rowData.push(item.producto?.nombre);
+        if (selectedColumns.includes('marca')) rowData.push(item.producto?.marca?.nombre);
+        if (selectedColumns.includes('categoria')) rowData.push(categoryName);
+        if (selectedColumns.includes('subcategoria')) rowData.push(subCategoryName);
+        if (selectedColumns.includes('cantidad')) rowData.push(item.cantidad_pedida);
+
+        return rowData;
       });
 
-      // Calculate Totals
-      const totalQuantity = items.reduce((sum, item) => sum + item.cantidad_pedida, 0);
-
       const ws_data = [
-        [title],
+        title,
+        [], // Spacing Row
         headers,
-        ...rows,
-        ['', '', '', '', 'TOTAL', totalQuantity] // Totals Row
+        ...rows
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
-      // Merge Title Cell
+      // Merge Title Cell (B1:EndCol)
       if (!ws['!merges']) ws['!merges'] = [];
-      ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } });
+      // Data starts at Column 1 (B) to headers.length - 1
+      ws['!merges'].push({ s: { r: 0, c: 1 }, e: { r: 0, c: headers.length - 1 } }); // Adjusted merge width
 
       // Configure Freeze Panes (Freeze top 2 rows)
-      const splitRow = 2;
-      ws['!freeze'] = { xSplit: 0, ySplit: splitRow, topLeftCell: `A${splitRow + 1}`, activePane: 'bottomLeft', state: 'frozen' };
+      const splitRow = 3;
+      ws['!freeze'] = { xSplit: 0, ySplit: splitRow, topLeftCell: `B${splitRow + 1}`, activePane: 'bottomLeft', state: 'frozen' };
 
-      // Configure AutoFilter (Applies to headers and data, excluding totals)
-      const range = XLSX.utils.decode_range(ws['!ref']!);
-      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 1, c: 0 }, e: { r: range.e.r - 1, c: 5 } }) };
+      // AutoFilter REMOVED per user request
 
       // Styles
       const borderStyle = {
@@ -487,9 +522,10 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       };
 
       const titleStyle = {
-        font: { name: "Calibri", sz: 16, bold: true, color: { rgb: "4472C4" } },
+        font: { name: "Calibri Light", sz: 18, bold: true, color: { rgb: "4472C4" } }, // Bold, Standard Blue
         alignment: { horizontal: "center", vertical: "center" },
-        fill: { fgColor: { rgb: "FFFFFF" } }
+        fill: { fgColor: { rgb: "FFFFFF" } },
+        border: { bottom: { style: "medium", color: { rgb: "4472C4" } } } // Back to Medium
       };
 
       const headerStyle = {
@@ -499,79 +535,60 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         border: borderStyle
       };
 
-      const cellStyle = {
-        font: { name: "Calibri", sz: 11 },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: borderStyle
-      };
-
-      const quantityCellStyle = {
-        fill: { fgColor: { rgb: "BDD7EE" } }, // Light Blue
-        font: { name: "Calibri", sz: 11, bold: true },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: borderStyle
-      };
-
-      const totalLabelStyle = {
-        fill: { fgColor: { rgb: "E2E8F0" } }, // Light Slate
-        font: { name: "Calibri", sz: 12, bold: true },
-        alignment: { horizontal: "right", vertical: "center" },
-        border: borderStyle
-      };
-
-      const totalValueStyle = {
-        fill: { fgColor: { rgb: "BDD7EE" } }, // Blue like qty
-        font: { name: "Calibri", sz: 12, bold: true },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: borderStyle
-      };
-
-      // Apply Styles
+      // Styles Loop
       const finalRange = XLSX.utils.decode_range(ws['!ref']!);
+
+      // Ensure Title cells exist to apply borders correctly across the merge
+      for (let C = 1; C < headers.length; ++C) {
+        const addr = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+        ws[addr].s = titleStyle; // Apply style to ALL cells in title row for consistent border
+      }
 
       for (let R = finalRange.s.r; R <= finalRange.e.r; ++R) {
         for (let C = finalRange.s.c; C <= finalRange.e.c; ++C) {
+          if (C === 0) continue; // Skip Col A
           const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
           if (!ws[cell_address]) continue;
 
-          // Title
+          // Title Row (Reviewing again to be safe, though loop above handles it)
           if (R === 0) ws[cell_address].s = titleStyle;
-          // Headers
-          else if (R === 1) ws[cell_address].s = headerStyle;
-          // Totals Row
-          else if (R === finalRange.e.r) {
-            if (C === 4) ws[cell_address].s = totalLabelStyle;
-            else if (C === 5) ws[cell_address].s = totalValueStyle;
-            else ws[cell_address].s = cellStyle;
-          }
-          // Data
-          else {
-            if (C === 5) { // Cantidad Column
-              ws[cell_address].s = quantityCellStyle;
-            } else {
-              ws[cell_address].s = cellStyle;
-            }
+          else if (R === 2) ws[cell_address].s = headerStyle;
+          else if (R > 2) {
+            ws[cell_address].s = {
+              font: { name: "Calibri", sz: 11 },
+              alignment: { horizontal: "center", vertical: "center" },
+              border: borderStyle
+            };
           }
         }
       }
 
-      // Column Widths
-      ws['!cols'] = [
-        { wch: 15 }, // Ref
-        { wch: 40 }, // Prod
-        { wch: 15 }, // Marca
-        { wch: 20 }, // Cat
-        { wch: 20 }, // Sub
-        { wch: 12 }, // Cant
-      ];
+      // Estimate Column Widths
+      const colWidths = [{ wch: 4 }]; // A padding
+      activeCols.forEach(col => {
+        if (col.id === 'producto') colWidths.push({ wch: 40 });
+        else if (col.id === 'cantidad') colWidths.push({ wch: 12 });
+        else colWidths.push({ wch: 20 });
+      });
+      ws['!cols'] = colWidths;
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Pedido");
 
-      XLSX.writeFile(wb, `Pedido_${cleanBrand}_${order.id.slice(0, 8)}.xlsx`);
+      console.log("Exportando Pedido v4");
+      // Use Order Title for filename
+      const rawTitle = order.titulo || `PEDIDO_${cleanBrand}`;
+      // Sanitize filename (remove special chars except spaces, dashes, underscores)
+      const safeTitle = rawTitle.replace(/[^a-zA-Z0-9ñÑ \-_]/g, '').trim();
+      XLSX.writeFile(wb, `${safeTitle}.xlsx`);
+
+      setShowExportModal(false);
+      setOrderToExport(null);
+
     } catch (error) {
       console.error("Error downloading excel", error);
-      addToast("Error al generar el Excel.", 'error');
+      addToast("Error al generar el Excel. Revisa la consola.", 'error');
     } finally {
       setLoading(false);
     }
@@ -658,7 +675,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                     <Edit size={20} />
                   </button>
                   <button
-                    onClick={() => handleDownloadExcel(order)}
+                    onClick={() => openExportModal(order)}
                     className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
                     title="Descargar Excel"
                   >
@@ -791,6 +808,49 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             </div>
           )}
         </Modal>
+        <Modal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          title="Configurar Exportación"
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDownloadExcel}
+                className="px-4 py-2 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2"
+              >
+                <FileSpreadsheet size={16} />
+                Descargar Excel
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Selecciona las columnas que deseas incluir en el archivo Excel:</p>
+            <div className="grid grid-cols-2 gap-3">
+              {AVAILABLE_COLUMNS.map(col => (
+                <label key={col.id} className="flex items-center space-x-3 p-3 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedColumns.includes(col.id)}
+                    onChange={() => toggleColumn(col.id)}
+                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{col.label}</span>
+                </label>
+              ))}
+            </div>
+            {selectedColumns.length === 0 && (
+              <p className="text-xs text-rose-500 font-bold mt-2">Debes seleccionar al menos una columna.</p>
+            )}
+          </div>
+        </Modal>
+
       </div >
     );
   }

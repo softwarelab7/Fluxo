@@ -166,6 +166,22 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
   }, [items, itemSearchTerm]);
 
 
+  const handleUpdateItemStatus = async (itemId: string, newStatus: EstadoItem) => {
+    try {
+      setIsProcessing(true);
+      await repository.updatePedidoItem(itemId, { estado_item: newStatus });
+
+      // Update local state by removing from missing items
+      setMissingItems(prev => prev.filter(i => i.item.id !== itemId));
+
+      addToast(newStatus === 'Cancelado' ? "Item eliminado de faltantes." : "Item pausado (pendiente).", 'success');
+    } catch (error) {
+      console.error("Error updating item status:", error);
+      addToast("Error al actualizar estado.", 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleSelectPedido = async (p: Pedido) => {
     try {
@@ -681,9 +697,28 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       <span className="px-2 py-1 rounded bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-wider border border-rose-500/20">
                         {item.estado_item}
                       </span>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        {new Date(pedido.fecha_recepcion!).toLocaleDateString()}
-                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-500 font-mono mr-2">
+                          {new Date(pedido.fecha_recepcion!).toLocaleDateString()}
+                        </span>
+
+                        {/* Action Buttons */}
+                        <button
+                          onClick={() => handleUpdateItemStatus(item.id, 'Pendiente')}
+                          className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors border border-amber-200 dark:border-amber-500/20"
+                          title="Pausar (Pendiente)"
+                        >
+                          <History size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleUpdateItemStatus(item.id, 'Cancelado')}
+                          className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors border border-rose-200 dark:border-rose-500/20"
+                          title="Eliminar (No se espera)"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                     <h4 className="font-bold text-slate-800 dark:text-white mb-1">{item.producto?.nombre}</h4>
                     <p className="text-xs text-slate-400 mb-4">{
