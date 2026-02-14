@@ -1,6 +1,6 @@
 
 export type EstadoPedido = 'Pendiente' | 'En Camino' | 'Recibido' | 'Auditado' | 'Cancelado';
-export type EstadoItem = 'Completo' | 'Incompleto' | 'No llegó' | 'Dañado' | 'Cancelado' | 'Pendiente';
+export type EstadoItem = 'Completo' | 'Incompleto' | 'No llegó' | 'Dañado' | 'Cancelado' | 'Pendiente' | 'Agotado';
 
 export interface Categoria {
   id: string;

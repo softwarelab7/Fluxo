@@ -13,6 +13,8 @@ import { ToastProvider } from './components/Toast';
 import { supabase } from './services/supabase';
 import { Login } from './views/Login';
 import { Users } from './views/Users';
+import MissingItems from './views/MissingItems';
+import OutOfStock from './views/OutOfStock';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('dashboard');
@@ -70,6 +72,7 @@ const App: React.FC = () => {
   };
 
   const renderView = () => {
+    console.log("Current Active View:", activeView);
     switch (activeView) {
       case 'dashboard':
         return <Dashboard onNavigate={handleNavigate} />;
@@ -81,8 +84,10 @@ const App: React.FC = () => {
         return <Orders initialViewMode="LIST" />;
       case 'audit':
         return <Audit />;
-      case 'audit-missing':
-        return <Audit initialViewMode="MISSING" />;
+      case 'missing-items':
+        return <MissingItems />;
+      case 'out-of-stock':
+        return <OutOfStock />;
       case 'suppliers':
         return <Suppliers />;
       case 'classification':

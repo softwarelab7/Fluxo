@@ -68,7 +68,11 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             }
         };
 
-        const handleScroll = () => {
+        const handleScroll = (event: Event) => {
+            // Don't close if scrolling inside the dropdown options
+            if (dropdownRef.current && dropdownRef.current.contains(event.target as Node)) {
+                return;
+            }
             if (isOpen) setIsOpen(false);
         };
 

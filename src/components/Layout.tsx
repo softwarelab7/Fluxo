@@ -19,7 +19,8 @@ import {
   Bell,
   Users as UsersIcon,
   LogOut,
-  Bookmark
+  Bookmark,
+  PackageX
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -63,6 +64,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [missingCount, setMissingCount] = useState(0);
+  const [outOfStockCount, setOutOfStockCount] = useState(0);
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
 
   // Initialize theme
@@ -92,14 +94,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
       const pedidos = await repository.getPedidos();
       const auditados = pedidos.filter(p => p.estado === 'Auditado');
       let count = 0;
+      let stockCount = 0;
 
       await Promise.all(auditados.map(async (p) => {
         const items = await repository.getPedidoItems(p.id);
         items.forEach(i => {
           if (i.estado_item === 'Incompleto' || i.estado_item === 'No llegó') count++;
+          if (i.estado_item === 'Agotado') stockCount++;
         });
       }));
       setMissingCount(count);
+      setOutOfStockCount(stockCount);
     } catch (e) {
       console.error("Error checking missing items:", e);
     }
@@ -138,13 +143,32 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
   const navItems = [...menuItems];
   if (missingCount > 0) {
     navItems.push({
-      id: 'audit-missing',
-      label: 'Notificaciones',
-      icon: Bell,
+      id: 'missing-items',
+      label: 'Faltantes',
+      icon: AlertTriangle,
       // @ts-ignore
       badge: missingCount,
       // @ts-ignore
       variant: 'alert'
+    });
+  }
+
+  // Always show or only if count > 0? User said "tengamos una seccion de agotados", implying permanent or conditional.
+  // I'll make it always visible if count > 0, or maybe always visible?
+  // Usually "Faltantes" is an alert. "Agotados" is a report.
+  // Let's make it conditional for now to keep menu clean, similar to missing.
+  if (outOfStockCount > 0) {
+    navItems.push({
+      id: 'out-of-stock',
+      label: 'Agotados',
+      icon: Package, // PackageX not imported in Layout yet, need to import it or use another icon. 
+      // Wait, Package is used for Inventory. 
+      // Let's use ClipboardList or something else.
+      // Or import PackageX.
+      // @ts-ignore
+      badge: outOfStockCount,
+      // @ts-ignore
+      variant: 'default'
     });
   }
 
