@@ -21,13 +21,15 @@ import {
   ChevronDown,
   LayoutGrid,
   List,
-  Clock
+  Clock,
+  Upload
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import CustomSelect from '../components/CustomSelect';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import XLSX from 'xlsx-js-style';
+import * as XLSXReader from 'xlsx'; // For reading
 import { Producto, Marca, Categoria } from '../types';
 import { Skeleton } from '../components/Skeleton';
 
@@ -58,6 +60,11 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
   const [showMediumRotation, setShowMediumRotation] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const { addToast } = useToast();
+
+  // Import State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importLogs, setImportLogs] = useState<string[]>([]);
 
   // History State
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
@@ -129,7 +136,7 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
   const handleExport = () => {
     // 1. Structure Data
     // Column A is empty. Data starts at Column B.
-    const headers = ['', 'REFERENCIA', 'PRODUCTO', 'MARCA', 'CATEGORÍA', 'SUBCATEGORÍA', 'STOCK ACTUAL', 'STOCK MÍNIMO', 'ROTACIÓN'];
+    const headers = ['', 'REFERENCIA', 'PRODUCTO', 'MARCA', 'CATEGORÍA', 'SUBCATEGORÍA', 'ROTACIÓN'];
     const title = ['', "INVENTARIO MAESTRO"]; // Title starts at B1
 
     const rows = products.map(p => {
@@ -148,8 +155,6 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
         p.marca?.nombre,
         categoryName,
         subCategoryName,
-        p.stock_actual,
-        p.stock_minimo,
         p.rotacion ? p.rotacion.charAt(0).toUpperCase() + p.rotacion.slice(1) : 'Media'
       ];
     });
@@ -164,9 +169,9 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
 
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
-    // Merge Title (B1:I1) - 8 columns of data starting at index 1
+    // Merge Title (B1:G1) - 6 columns of data starting at index 1
     if (!ws['!merges']) ws['!merges'] = [];
-    ws['!merges'].push({ s: { r: 0, c: 1 }, e: { r: 0, c: 8 } });
+    ws['!merges'].push({ s: { r: 0, c: 1 }, e: { r: 0, c: 6 } });
 
     // Configure Freeze Panes
     // Rows 0 (Title), 1 (Space), 2 (Header) are frozen. Split at row 3.
@@ -175,9 +180,9 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
 
     // Configure AutoFilter (Applies to headers and data)
     // Headers are at Row Index 2. Data starts at Row Index 3.
-    // Range starts at B3 (Row index 2, Col index 1) to I(lastRow)
+    // Range starts at B3 (Row index 2, Col index 1) to G(lastRow)
     const range = XLSX.utils.decode_range(ws['!ref']!);
-    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 2, c: 1 }, e: { r: range.e.r, c: 8 } }) };
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 2, c: 1 }, e: { r: range.e.r, c: 6 } }) };
 
     // Styles
     const borderStyle = {
@@ -220,16 +225,7 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
         if (R === 0) ws[cell_address].s = titleStyle;
         else if (R === 2) ws[cell_address].s = headerStyle; // Header is now at Row 2
         else if (R > 2) { // Data Rows
-          // Highlight Stock Actual (Index 6, since we shifted by 1)
-          if (C === 6) {
-            ws[cell_address].s = {
-              ...cellStyle,
-              fill: { fgColor: { rgb: "BDD7EE" } },
-              font: { name: "Calibri", sz: 11, bold: true }
-            };
-          } else {
-            ws[cell_address].s = cellStyle;
-          }
+          ws[cell_address].s = cellStyle;
         }
       }
     }
@@ -242,9 +238,7 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
       { wch: 15 }, // D: Marca
       { wch: 20 }, // E: Cat
       { wch: 20 }, // F: Sub
-      { wch: 12 }, // G: Stock Actual
-      { wch: 12 }, // H: Stock Min
-      { wch: 10 }, // I: Rot
+      { wch: 10 }, // G: Rot (Moved from I)
     ];
 
     const wb = XLSX.utils.book_new();
@@ -255,6 +249,281 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
 
   const handleDeleteClick = (id: string) => {
     setDeleteConfirmation(id);
+  };
+
+  const handleTemplateDownload = () => {
+    // 1. Structure Data
+    const title = ['', "PLANTILLA DE IMPORTACIÓN DE INVENTARIO"];
+    const headers = ['', 'REFERENCIA', 'PRODUCTO', 'MARCA', 'CATEGORÍA', 'SUBCATEGORÍA', 'PROVEEDOR', 'ROTACIÓN'];
+
+    const ws_data = [
+      title,
+      [], // Spacer
+      headers
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+    // 2. Styling Configurations
+    // Merge Title (B1:H1)
+    if (!ws['!merges']) ws['!merges'] = [];
+    ws['!merges'].push({ s: { r: 0, c: 1 }, e: { r: 0, c: 7 } });
+
+    // Column Widths
+    ws['!cols'] = [
+      { wch: 4 },  // Spacer A
+      { wch: 15 }, // B: REF
+      { wch: 35 }, // C: PRODUCTO
+      { wch: 15 }, // D: MARCA
+      { wch: 20 }, // E: CAT
+      { wch: 20 }, // F: SUBCAT
+      { wch: 25 }, // G: PROV
+      { wch: 10 }, // H: ROT
+    ];
+
+    // Styles
+    const borderStyle = {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } }
+    };
+
+    const titleStyle = {
+      font: { name: "Calibri", sz: 16, bold: true, color: { rgb: "FFFFFF" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      fill: { fgColor: { rgb: "4472C4" } }, // Blue Background
+      border: borderStyle
+    };
+
+    const headerStyle = {
+      fill: { fgColor: { rgb: "4472C4" } }, // Blue Header
+      font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: borderStyle
+    };
+
+    const cellStyle = {
+      font: { name: "Calibri", sz: 11, color: { rgb: "333333" } },
+      alignment: { horizontal: "left", vertical: "center" },
+      border: borderStyle
+    };
+
+    const centerStyle = {
+      ...cellStyle,
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+
+    // Apply Styles Loop
+    const range = XLSX.utils.decode_range(ws['!ref']!);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        if (C === 0) continue; // Skip spacer col
+        const cell_address = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cell_address]) continue;
+
+        if (R === 0) ws[cell_address].s = titleStyle;
+        else if (R === 2) ws[cell_address].s = headerStyle;
+        else if (R > 2) {
+          // Data Rows (Examples)
+          // Center align REF (1) and ROTATION (7)
+          if (C === 1 || C === 7) ws[cell_address].s = centerStyle;
+          else ws[cell_address].s = cellStyle;
+        }
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Plantilla Importación");
+    XLSX.writeFile(wb, "Plantilla_Inventario_Fluxo.xlsx");
+  };
+
+  const processImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportLogs([]);
+    const addLog = (msg: string) => setImportLogs(prev => [...prev, msg]);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSXReader.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSXReader.utils.sheet_to_json(sheet) as any[];
+
+      addLog(`Archivo leído correctamente. ${jsonData.length} filas encontradas.`);
+      addLog("Iniciando procesamiento...");
+
+      // Helper for normalization (Case insensitive, accent insensitive, trimmed)
+      const normalizeStr = (str: string) => {
+        return str
+          .toString()
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+      };
+
+      // 1. Refresh Cache to ensure we don't duplicate
+      const [currentMarcas, currentCats, currentProds, currentProvs] = await Promise.all([
+        repository.getMarcas(),
+        repository.getCategorias(),
+        repository.getProductos(),
+        repository.getProveedores()
+      ]);
+
+      // Maps for quick lookup using normalized keys
+      const marcaMap = new Map(currentMarcas.map(m => [normalizeStr(m.nombre), m.id]));
+      const catMap = new Map(currentCats.map(c => [normalizeStr(c.name), c]));
+      const skuMap = new Map(currentProds.map(p => [normalizeStr(p.sku), p.id]));
+      const provMap = new Map(currentProvs.map(p => [normalizeStr(p.nombre), p.id]));
+
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      for (const [index, row] of jsonData.entries()) {
+        const rowNum = index + 2; // Header is 1
+
+        const sku = (row['REFERENCIA'] || row['referencia'] || row['SKU'])?.toString().trim();
+        const nombre = (row['PRODUCTO'] || row['producto'] || row['NOMBRE'])?.toString().trim();
+        const marcaName = (row['MARCA'] || row['marca'])?.toString().trim();
+        const catName = (row['CATEGORÍA'] || row['categoría'] || row['CATEGORIA'])?.toString().trim();
+        const subCatName = (row['SUBCATEGORÍA'] || row['subcategoría'] || row['SUBCATEGORIA'])?.toString().trim();
+        const provName = (row['PROVEEDOR'] || row['proveedor'] || row['PROVIDER'])?.toString().trim();
+        const rotacionRaw = (row['ROTACIÓN'] || row['rotación'] || row['ROTACION'])?.toString().trim().toLowerCase();
+
+        if (!sku || !nombre) {
+          addLog(`Fila ${rowNum}: Saltada por falta de SKU o Nombre.`);
+          continue;
+        }
+
+        // --- 1. Handle Marca ---
+        let marcaId = '';
+        if (marcaName) {
+          const key = normalizeStr(marcaName);
+          if (marcaMap.has(key)) {
+            marcaId = marcaMap.get(key)!;
+          } else {
+            addLog(`Creando nueva marca: ${marcaName}`);
+            const newMarca = await repository.addMarca({ nombre: marcaName });
+            if (newMarca) {
+              marcaId = newMarca.id;
+              marcaMap.set(key, marcaId);
+            }
+          }
+        } else {
+          // Default logic...
+          if (currentMarcas.length > 0) marcaId = currentMarcas[0].id; // Fallback
+          const genKey = normalizeStr("General");
+          if (marcaMap.has(genKey)) marcaId = marcaMap.get(genKey)!;
+          else {
+            const newM = await repository.addMarca({ nombre: "General" });
+            marcaId = newM.id;
+            marcaMap.set(genKey, marcaId);
+          }
+        }
+
+        // --- 2. Handle Category / Subcategory ---
+        let subcategoriaId = '';
+        let parentId = '';
+
+        if (catName) {
+          const catKey = normalizeStr(catName);
+          if (catMap.has(catKey)) {
+            parentId = catMap.get(catKey)!.id;
+          } else {
+            addLog(`Creando categoría: ${catName}`);
+            const newCat = await repository.addCategoria({ name: catName });
+            if (newCat) {
+              parentId = newCat.id;
+              catMap.set(catKey, newCat);
+            }
+          }
+        }
+
+        if (subCatName && parentId) {
+          const subKey = normalizeStr(subCatName);
+          const foundSub = Array.from(catMap.values()).find(c =>
+            normalizeStr(c.name) === subKey && c.parent_id === parentId
+          );
+
+          if (foundSub) {
+            subcategoriaId = foundSub.id;
+          } else {
+            addLog(`Creando subcategoría: ${subCatName} en ${catName}`);
+            const newSub = await repository.addCategoria({ name: subCatName, parent_id: parentId });
+            if (newSub) {
+              subcategoriaId = newSub.id;
+              catMap.set(normalizeStr(newSub.name) + "_" + parentId, newSub);
+              catMap.set(`SUB_${subKey}_${parentId}`, newSub);
+            }
+          }
+        } else if (parentId) {
+          subcategoriaId = parentId;
+        }
+
+        // --- 3. Handle Provider ---
+        let supplierId: string | undefined = undefined;
+        if (provName) {
+          const provKey = normalizeStr(provName);
+          if (provMap.has(provKey)) {
+            supplierId = provMap.get(provKey)!;
+          } else {
+            addLog(`Creando proveedor: ${provName}`);
+            const newProv = await repository.addProveedor({ nombre: provName });
+            if (newProv) {
+              supplierId = newProv.id;
+              provMap.set(provKey, supplierId);
+            }
+          }
+        }
+
+        // --- 4. Handle Product ---
+        const rotacion = (rotacionRaw === 'alta' || rotacionRaw === 'media' || rotacionRaw === 'baja') ? rotacionRaw : 'media';
+
+        const productPayload = {
+          sku,
+          nombre,
+          marca_id: marcaId,
+          subcategoria_id: subcategoriaId,
+          preferred_supplier_id: supplierId,
+          rotacion: rotacion as 'alta' | 'media' | 'baja',
+          stock_actual: 0,
+          stock_minimo: 5
+        };
+
+        const skuKey = normalizeStr(sku);
+        if (skuMap.has(skuKey)) {
+          const id = skuMap.get(skuKey)!;
+          await repository.updateProducto(id, productPayload);
+          updatedCount++;
+          addLog(`Actualizado: ${sku}`);
+        } else {
+          await repository.addProducto(productPayload);
+          createdCount++;
+          addLog(`Creado: ${sku}`);
+        }
+      }
+
+      // Slight delay to breathe?
+      // await new Promise(r => setTimeout(r, 10));
+
+
+      addLog('--- Fin del proceso ---');
+      addLog(`Resumen: ${createdCount} creados, ${updatedCount} actualizados.`);
+      addToast(`Importación completada: ${createdCount} nuevos, ${updatedCount} actualizados`, 'success');
+
+      await loadData();
+      // Don't close modal immediately so user can read logs
+      setIsImporting(false);
+
+    } catch (error: any) {
+      console.error(error);
+      addLog(`ERROR CRÍTICO: ${error.message}`);
+      addToast('Error en la importación', 'error');
+      setIsImporting(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -483,6 +752,9 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
               </button>
             </div>
 
+            <button onClick={() => setShowImportModal(true)} className="flex items-center px-4 py-2 bg-white dark:bg-[#1e293b] rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#1e293b] text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 mr-2">
+              <Upload size={14} className="mr-2" /> Importar
+            </button>
             <button onClick={handleExport} className="flex items-center px-4 py-2 bg-white dark:bg-[#1e293b] rounded-xl text-xs font-bold hover:bg-emerald-50 dark:hover:bg-[#1e293b] text-emerald-600 dark:text-emerald-400 shadow-sm border border-emerald-200 dark:border-emerald-500/30">
               <Download size={14} className="mr-2" /> Excel
             </button>
@@ -955,6 +1227,78 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
           </div>
         )
       }
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <Modal
+          isOpen={showImportModal}
+          onClose={() => !isImporting && setShowImportModal(false)}
+          title="Importar Inventario desde Excel"
+          maxWidth="max-w-xl"
+          footer={
+            <button
+              onClick={() => setShowImportModal(false)}
+              disabled={isImporting}
+              className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-bold transition-colors"
+            >
+              Cerrar
+            </button>
+          }
+        >
+          <div className="p-6 space-y-6">
+            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
+              <h4 className="font-bold text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-2">
+                <Download size={16} /> Plantilla Requerida
+              </h4>
+              <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
+                Para asegurar una importación correcta, utiliza nuestra plantilla oficial.
+                Las columnas deben ser exactas.
+              </p>
+              <button
+                onClick={handleTemplateDownload}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95"
+              >
+                Descargar Plantilla Excel
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Subir Archivo (.xlsx)</label>
+              <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-blue-500 transition-colors bg-slate-50 dark:bg-slate-800/50 cursor-pointer relative">
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={processImportFile}
+                  disabled={isImporting}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                />
+                {isImporting ? (
+                  <Loader2 size={32} className="animate-spin text-blue-500 mb-2" />
+                ) : (
+                  <Upload size={32} className="text-slate-400 mb-2" />
+                )}
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  {isImporting ? 'Procesando archivo...' : 'Arrastra tu archivo o haz clic para seleccionar'}
+                </p>
+              </div>
+            </div>
+
+            {/* Logs Console */}
+            {importLogs.length > 0 && (
+              <div className="bg-slate-900 text-slate-300 p-4 rounded-xl text-xs font-mono h-48 overflow-y-auto custom-scrollbar border border-slate-800">
+                {importLogs.map((log, i) => (
+                  <div key={i} className="mb-1 border-b border-white/5 pb-0.5 last:border-0">
+                    {log.startsWith('ERROR') ? <span className="text-rose-400">{log}</span> :
+                      log.startsWith('Creado') ? <span className="text-emerald-400">{log}</span> :
+                        log.startsWith('Actualizado') ? <span className="text-blue-400">{log}</span> :
+                          log}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal
