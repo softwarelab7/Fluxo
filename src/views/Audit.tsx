@@ -251,12 +251,12 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     const currentAudit = auditedValues[itemId];
     const qty = field === 'qty' ? val : (currentAudit?.qty || 0);
 
-    let status: EstadoItem = explicitStatus || 'Completo';
+    let status: EstadoItem = explicitStatus || (qty === requested ? 'Completo' : 'Incompleto');
 
     if (!explicitStatus) {
       if (qty === 0) status = 'No llegó';
-      else if (qty < requested) status = 'Incompleto';
-      else if (qty > requested) status = 'Completo'; // over-delivery
+      else if (qty === requested) status = 'Completo';
+      else status = 'Incompleto'; // Se usa Incompleto para cualquier diferencia (menos o más) que requiera revisión
     }
 
     setAuditedValues(prev => ({
@@ -479,13 +479,13 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     // Check for discrepancies
     const discrepancies = items.filter(item => {
       const audit = auditedValues[item.id];
-      return audit.status === 'Incompleto' || audit.status === 'No llegó';
+      return audit.qty !== item.cantidad_pedida || audit.status === 'Agotado';
     });
 
     if (discrepancies.length > 0) {
       openConfirmModal(
         '⚠ Confirmar Discrepancias',
-        `Hay ${discrepancies.length} ítem(s) marcados como Incompletos o que No Llegaron. ¿Estás seguro de finalizar la auditoría así?`,
+        `Hay ${discrepancies.length} ítem(s) con discrepancias (faltas o excedentes). ¿Estás seguro de finalizar la auditoría así?`,
         processFinalization
       );
     } else {
@@ -609,7 +609,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
       updatedItems.forEach(item => {
         const qty = 0;
         const prev = auditedValues[item.id]?.qty || 0;
-        const status = prev === 0 ? 'No llegó' : (prev < item.cantidad_pedida ? 'Incompleto' : 'Completo');
+        const status = prev === 0 ? 'No llegó' : (prev === item.cantidad_pedida ? 'Completo' : 'Incompleto');
         newAudit[item.id] = { qty: prev, status };
       });
       setAuditedValues(newAudit);
@@ -677,8 +677,8 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     items.forEach(item => {
       const audit = auditedValues[item.id];
       if (audit) {
-        if (audit.qty === item.cantidad_pedida) perfectCount++;
-        if (audit.status === 'Incompleto' || audit.status === 'No llegó') missing++;
+        if (audit.qty === item.cantidad_pedida && audit.status !== 'Agotado') perfectCount++;
+        if (audit.qty !== item.cantidad_pedida || audit.status === 'Agotado') missing++;
       }
     });
 
@@ -984,7 +984,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
               <div className="mb-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 flex items-center gap-2 text-rose-500 dark:text-rose-400">
                 <AlertCircle size={16} className="shrink-0" />
                 <span className="text-xs font-bold leading-tight">
-                  Atención: Se cerró con {missingCount} ítems faltantes.
+                  Atención: Se cerró con {missingCount} discrepancias encontradas.
                 </span>
               </div>
             )}
@@ -1181,6 +1181,11 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#0f172a] text-[10px] font-mono text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#334155]">
                         {item.producto?.sku}
                       </span>
+                      {item.producto?.categoria && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-[10px] font-bold text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/30">
+                          {item.producto.categoria.name}
+                        </span>
+                      )}
                       {item.producto_real && (
                         <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-500/20 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 flex items-center gap-1">
                           <Replace size={10} />
@@ -1491,6 +1496,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                         <div className="flex gap-2 mt-1">
                           <span className="text-[10px] bg-slate-100 dark:bg-black/20 px-1.5 py-0.5 rounded text-slate-500 font-mono">{p.sku}</span>
                           <span className="text-[10px] text-slate-400">{p.marca?.nombre}</span>
+                          {p.categoria && <span className="text-[10px] text-blue-500 font-bold">{p.categoria.name}</span>}
                         </div>
                       </div>
                       <button

@@ -199,11 +199,13 @@ export const repository = {
                 items:pedido_items(
                     producto:productos!producto_id(
                     marca:marcas(*),
+                    categoria:categorias(*),
                     proveedor:proveedores(*)
                 ),
                 producto_real:productos!producto_real_id(
                     *,
                     marca:marcas(*),
+                    categoria:categorias(*),
                     proveedor:proveedores(*)
                 )
             )
@@ -221,11 +223,13 @@ export const repository = {
                 producto:productos!producto_id(
                     *,
                     marca:marcas(*),
+                    categoria:categorias(*),
                     proveedor:proveedores(*)
                 ),
                 producto_real:productos!producto_real_id(
                     *,
                     marca:marcas(*),
+                    categoria:categorias(*),
                     proveedor:proveedores(*)
                 )
             `)
