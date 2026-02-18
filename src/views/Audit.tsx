@@ -671,20 +671,29 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     const total = items.length;
     if (total === 0) return { percent: 0, perfect: 0, hasDiscrepancies: false, missingCount: 0 };
 
-    let perfectCount = 0;
+    let progressWeight = 0;
     let missing = 0;
 
     items.forEach(item => {
       const audit = auditedValues[item.id];
       if (audit) {
-        if (audit.qty === item.cantidad_pedida && audit.status !== 'Agotado') perfectCount++;
-        if (audit.qty !== item.cantidad_pedida || audit.status === 'Agotado') missing++;
+        // Line progress: 1.0 if fully received or more, partial if less
+        const lineProgress = item.cantidad_pedida > 0
+          ? Math.min(audit.qty / item.cantidad_pedida, 1)
+          : (audit.qty > 0 ? 1 : 0);
+
+        progressWeight += lineProgress;
+
+        // Discrepancies: anything that doesn't match the order exactly or is out of stock
+        if (audit.qty !== item.cantidad_pedida || audit.status === 'Agotado') {
+          missing++;
+        }
       }
     });
 
     return {
-      percent: Math.round((perfectCount / total) * 100),
-      perfect: perfectCount,
+      percent: Math.round((progressWeight / total) * 100),
+      perfect: items.filter(i => auditedValues[i.id]?.qty === i.cantidad_pedida && auditedValues[i.id]?.status !== 'Agotado').length,
       hasDiscrepancies: missing > 0,
       missingCount: missing
     };
