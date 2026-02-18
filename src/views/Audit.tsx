@@ -708,7 +708,24 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
   }, [items, auditedValues]);
 
 
+  const calculatePedidoProgress = (pedido: Pedido) => {
+    const pItems = pedido.items || [];
+    if (pItems.length === 0) return 0;
+
+    let weight = 0;
+    pItems.forEach(i => {
+      const req = Number(i.cantidad_pedida) || 0;
+      const rec = Number(i.cantidad_recibida) || 0;
+      weight += req > 0 ? Math.min(rec / req, 1) : (rec > 0 ? 1 : 0);
+    });
+
+    return Math.round((weight / pItems.length) * 100);
+  };
+
   const getDisplayBrand = (pedido: Pedido) => {
+    // Priority: User-defined title
+    if (pedido.titulo) return pedido.titulo;
+
     // If no items loaded (shouldn't happen with new fetch) or no brands
     if (!pedido.items || pedido.items.length === 0) return pedido.proveedor?.nombre || "Proveedor Desconocido";
 
@@ -850,10 +867,26 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                     </span>
                   </div>
 
-                  <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm">
-                    <PackageCheck size={16} className="mr-2 opacity-70" />
-                    <span>{p.total_items} referencias</span>
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-sm mb-2">
+                    <div className="flex items-center">
+                      <PackageCheck size={16} className="mr-2 opacity-70" />
+                      <span>{p.total_items} referencias</span>
+                    </div>
+                    {p.estado === 'Auditado' && (
+                      <span className="text-[10px] font-black text-blue-500 dark:text-blue-400">
+                        {calculatePedidoProgress(p)}%
+                      </span>
+                    )}
                   </div>
+
+                  {p.estado === 'Auditado' && (
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-black/20 rounded-full overflow-hidden mb-1">
+                      <div
+                        className="h-full bg-blue-500 transition-all duration-1000 ease-out"
+                        style={{ width: `${calculatePedidoProgress(p)}%` }}
+                      ></div>
+                    </div>
+                  )}
                 </div>
                 {p.estado === 'En Camino' && (
                   <div className="p-4">

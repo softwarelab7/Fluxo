@@ -197,6 +197,7 @@ export const repository = {
                 *,
                 proveedor:proveedores(*),
                 items:pedido_items(
+                    *,
                     producto:productos!producto_id(
                     marca:marcas(*),
                     categoria:categorias(*),
