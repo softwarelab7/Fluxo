@@ -313,7 +313,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                           </div>
                           <div>
                             <p className="font-semibold text-slate-900 dark:text-slate-200 group-hover:text-rose-600 dark:group-hover:text-white transition-colors">{p.nombre}</p>
-                            <p className="text-[10px] text-slate-500 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors font-mono tracking-wide">{p.sku}</p>
+                            <p className="text-[10px] text-slate-950 dark:text-white font-black font-mono tracking-wide group-hover:text-rose-600 transition-colors uppercase">
+                              {p.sku}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -508,7 +510,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       </div>
                       <div className="truncate">
                         <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">{p.nombre}</p>
-                        <p className="text-[10px] text-slate-400 leading-none mt-0.5">{p.sku}</p>
+                        <p className="text-[10px] text-slate-950 dark:text-white font-black leading-none mt-1 bg-white/50 dark:bg-black/20 px-1 rounded">{p.sku}</p>
                       </div>
                     </div>
                     <div className="text-right ml-2 shrink-0">

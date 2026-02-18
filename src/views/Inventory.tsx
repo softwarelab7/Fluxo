@@ -1014,7 +1014,7 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
                         {p.nombre}
                       </h4>
                       <div className="flex items-center justify-between mt-2">
-                        <span className="text-[10px] text-slate-400 font-mono bg-slate-50 dark:bg-slate-900 px-1.5 rounded">
+                        <span className="text-[10px] text-slate-950 dark:text-white font-black font-mono bg-slate-50 dark:bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                           {p.sku}
                         </span>
 

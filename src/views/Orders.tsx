@@ -793,8 +793,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                       <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                         <td className="px-4 py-3">
                           <div className="font-bold text-slate-700 dark:text-slate-200">{item.producto?.nombre}</div>
-                          <div className="text-xs text-slate-400 font-mono mt-0.5">
-                            {item.producto?.sku} • {item.producto?.marca?.nombre}
+                          <div className="text-xs text-slate-950 dark:text-white font-black font-mono mt-0.5">
+                            {item.producto?.sku} <span className="text-slate-400 font-normal ml-1">• {item.producto?.marca?.nombre}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center font-bold text-slate-800 dark:text-white bg-slate-50/50 dark:bg-white/5">
@@ -1166,7 +1166,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                           {product.nombre}
                         </h4>
                         <div className="flex items-center justify-between mt-2">
-                          <span className="text-[10px] text-slate-400 font-mono bg-slate-50 dark:bg-slate-900 px-1.5 rounded">
+                          <span className="text-[10px] text-slate-950 dark:text-white font-black font-mono bg-slate-50 dark:bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                             {product.sku}
                           </span>
 
@@ -1277,7 +1277,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                     <div className="pr-6 mb-2">
                       <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate leading-snug">{product.nombre}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-[10px] text-slate-400 font-mono">{product.sku}</p>
+                        <p className="text-[10px] text-slate-950 dark:text-white font-black font-mono">{product.sku}</p>
                         {subCategoryName && (
                           <p className="text-[9px] font-bold text-violet-500 dark:text-violet-400 uppercase truncate max-w-[100px]">{subCategoryName}</p>
                         )}

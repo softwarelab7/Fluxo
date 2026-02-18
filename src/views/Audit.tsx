@@ -1228,7 +1228,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       {item.producto?.nombre}
                     </h5>
                     <div className="flex items-center space-x-2">
-                      <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#0f172a] text-[10px] font-mono text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#334155]">
+                      <span className="px-1.5 py-0.5 rounded-md bg-white dark:bg-[#0f172a] text-[10px] font-mono font-black text-slate-950 dark:text-white border border-slate-300 dark:border-[#334155] shadow-sm">
                         {item.producto?.sku}
                       </span>
                       {item.producto?.categoria && (
@@ -1544,7 +1544,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       <div>
                         <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{p.nombre}</p>
                         <div className="flex gap-2 mt-1">
-                          <span className="text-[10px] bg-slate-100 dark:bg-black/20 px-1.5 py-0.5 rounded text-slate-500 font-mono">{p.sku}</span>
+                          <span className="text-[10px] bg-white dark:bg-black/40 px-1.5 py-0.5 rounded text-slate-950 dark:text-white font-black font-mono border border-slate-200 dark:border-slate-800 shadow-sm">{p.sku}</span>
                           <span className="text-[10px] text-slate-400">{p.marca?.nombre}</span>
                           {p.categoria && <span className="text-[10px] text-blue-500 font-bold">{p.categoria.name}</span>}
                         </div>
