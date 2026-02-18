@@ -186,7 +186,7 @@ const Categories = () => {
                                 className={`p-4 border-b border-transparent ${isExpanded ? 'border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5' : ''} rounded-t-2xl flex items-start gap-3 cursor-pointer select-none`}
                                 onClick={() => !isEditingThis && toggleExpand(cat.id)}
                             >
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                     {isEditingThis ? (
                                         <input
                                             autoFocus
@@ -198,16 +198,16 @@ const Categories = () => {
                                             className="w-full font-bold text-lg text-slate-800 dark:text-white bg-white dark:bg-slate-700 border dark:border-slate-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     ) : (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 w-full">
                                             <div className={`p-1 rounded-md transition-colors ${isExpanded ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'text-slate-400 group-hover:text-blue-500'}`}>
                                                 <ChevronRight size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
                                             </div>
-                                            <h3 className="font-bold text-lg text-slate-800 dark:text-white truncate" title={cat.name}>
+                                            <h3 className="font-bold text-base leading-tight text-slate-800 dark:text-white line-clamp-2 flex-1 min-w-0 break-words" title={cat.name}>
                                                 {cat.name}
                                             </h3>
                                         </div>
                                     )}
-                                    <div className="flex items-center gap-4 mt-2 ml-7 text-xs text-slate-500 dark:text-slate-400">
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 ml-7 text-xs text-slate-500 dark:text-slate-400">
                                         <div className="flex items-center gap-1.5" title="Total de productos">
                                             <Box size={14} className="text-blue-500/70" />
                                             <span className="font-bold text-slate-700 dark:text-slate-300">{stats}</span>

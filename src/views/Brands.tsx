@@ -250,14 +250,14 @@ const EditableBrand: React.FC<EditableItemProps> = ({ brand, count, onUpdate, on
     }
 
     return (
-        <GlassCard className="group relative flex flex-col justify-between p-4 h-[100px] hover:scale-[1.02] transition-all duration-300 border-slate-200 dark:border-slate-800 overflow-hidden cursor-default">
+        <GlassCard className="group relative flex flex-col justify-between p-4 min-h-[100px] h-auto hover:scale-[1.02] transition-all duration-300 border-slate-200 dark:border-slate-800 overflow-hidden cursor-default">
             {/* Decorative Background Icon */}
             <div className="absolute -bottom-2 -right-2 text-slate-100 dark:text-slate-800 opacity-50 group-hover:opacity-100 dark:group-hover:opacity-20 transition-all pointer-events-none">
                 <Bookmark size={60} strokeWidth={1.5} />
             </div>
 
             <div className="relative z-10 flex justify-between items-start">
-                <div className="font-black text-lg text-slate-800 dark:text-slate-100 leading-tight line-clamp-2" title={brand.nombre}>
+                <div className="font-black text-lg text-slate-800 dark:text-slate-100 leading-tight line-clamp-2 flex-1 min-w-0 pr-2 break-words" title={brand.nombre}>
                     {brand.nombre}
                 </div>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 -mr-2 -mt-2">

@@ -497,14 +497,33 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     if (!activePedido) return;
     setIsProcessing(true);
     try {
-      const promises = items.map(async item => {
+      // 1. Process Deletions
+      if (itemsToDelete.length > 0) {
+        await Promise.all(itemsToDelete.map(async (id) => {
+          const item = items.find(i => i.id === id);
+          if (item && item.cantidad_recibida > 0) {
+            // Revert stock for the deleted item
+            const targetProductId = item.producto_real_id || item.producto_id;
+            await repository.updateStock(targetProductId, -item.cantidad_recibida);
+          }
+          await repository.deletePedidoItem(id);
+        }));
+      }
+
+      // 2. Process Updates for remaining items
+      const validItems = items.filter(i => !itemsToDelete.includes(i.id));
+
+      const promises = validItems.map(async item => {
         const audit = auditedValues[item.id];
-        // Only update if changed
-        if (audit.qty !== item.cantidad_recibida) {
+        if (!audit) return; // Should not happen
+
+        // Only update if changed (qty or status)
+        if (audit.qty !== item.cantidad_recibida || audit.status !== item.estado_item) {
           const delta = audit.qty - item.cantidad_recibida;
 
           // Update Stock with Delta
-          await repository.updateStock(item.producto_id, delta);
+          const targetProductId = item.producto_real_id || item.producto_id;
+          await repository.updateStock(targetProductId, delta);
 
           // Update Item
           await repository.updatePedidoItem(item.id, {
@@ -518,6 +537,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
       addToast('Corrección guardada. Inventario actualizado.', 'success');
       setIsEditingHistory(false);
+      setItemsToDelete([]); // Clear deletions
 
       // Refresh items for this order to get new 'original' values
       const updatedItems = await repository.getPedidoItems(activePedido.id);
@@ -1003,6 +1023,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                     <button
                       onClick={() => {
                         setIsEditingHistory(false);
+                        setItemsToDelete([]); // Reset deletions
                         // Reset values to original
                         const resetAudit: Record<string, { qty: number, status: EstadoItem }> = {};
                         items.forEach(item => {
@@ -1113,7 +1134,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
       {/* Grid of Items */}
       <div className="grid grid-cols-1 gap-3">
         {filteredItems.map(item => {
-          if (itemsToDelete.includes(item.id) && !isEditingOrder) return null; // Don't show if deleted (visual optimization, though we filter in save)
+          if (itemsToDelete.includes(item.id) && !isEditingOrder && !isEditingHistory) return null; // Don't show if deleted (visual optimization)
           // Actually, we want to show them crossed out if isEditingOrder
 
           const audit = auditedValues[item.id];
@@ -1129,12 +1150,14 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
               key={item.id}
               noPadding
               className={`transition-all duration-300 ${isMarkedForDeletion
-                ? 'opacity-50 grayscale border-rose-500 bg-rose-50'
-                : isPerfect
-                  ? 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/[0.02]'
-                  : (activePedido.estado === 'Auditado' && isMissing) // Highlight missing in history
-                    ? 'border-rose-500/30 bg-rose-500/5 dark:bg-rose-500/[0.05]'
-                    : 'border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/[0.02]'
+                ? 'opacity-50 grayscale !border-rose-500 !bg-rose-50 !border'
+                : audit.status === 'Agotado'
+                  ? '!border-l-4 !border-l-red-500 !bg-red-50 dark:!bg-red-900/10'
+                  : isPerfect
+                    ? 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/[0.02] border'
+                    : (activePedido.estado === 'Auditado' && isMissing) // Highlight missing in history
+                      ? 'border-rose-500/30 bg-rose-500/5 dark:bg-rose-500/[0.05] border'
+                      : 'border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/[0.02] border'
                 }`}
             >
               <div className="p-4 flex flex-col md:flex-row items-center gap-6">
@@ -1221,7 +1244,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
                   {/* Status & Check Action */}
                   <div className="min-w-[120px] flex items-center justify-end gap-3">
-                    {activePedido.estado !== 'Auditado' && !isPerfect && !isEditingOrder && (
+                    {((activePedido.estado !== 'Auditado' || isEditingHistory) && !isPerfect && !isEditingOrder) && (
                       <button
                         onClick={() => updateAuditValue(item.id, item.cantidad_pedida)}
                         className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-400 transition-all shadow-sm border border-slate-200 dark:border-slate-700"
@@ -1231,8 +1254,8 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       </button>
                     )}
 
-                    {/* Delete Button for Edit Order Mode */}
-                    {isEditingOrder && (
+                    {/* Delete Button for Edit Order Mode OR History Mode */}
+                    {(isEditingOrder || isEditingHistory) && (
                       <button
                         onClick={() => {
                           if (itemsToDelete.includes(item.id)) {
@@ -1252,7 +1275,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                     )}
 
                     {/* Mark as Out of Stock Button */}
-                    {activePedido.estado !== 'Auditado' && !isPerfect && !isEditingOrder && (
+                    {((activePedido.estado !== 'Auditado' || isEditingHistory) && !isPerfect && !isEditingOrder) && (
                       <button
                         onClick={() => {
                           if (audit.status === 'Agotado') {
@@ -1291,12 +1314,29 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                         <span className="text-xs font-bold">Completo</span>
                       </div>
                     ) : (
-                      <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border ${audit.status === 'Agotado'
-                        ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400'
-                        : isMissing
-                          ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400'
-                          : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400'
-                        }`}>
+                      <div
+                        onClick={() => {
+                          if (activePedido.estado === 'Auditado' && !isEditingHistory) {
+                            setIsEditingHistory(true);
+                            addToast("Modo de edición activado. Haz clic nuevamente para desmarcar.", 'info');
+                            return;
+                          }
+                          if ((activePedido.estado !== 'Auditado' || isEditingHistory) && !isEditingOrder && audit.status === 'Agotado') {
+                            updateAuditValue(item.id, audit.qty, 'qty', undefined);
+                          }
+                        }}
+                        className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border ${audit.status === 'Agotado'
+                          ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400'
+                          : isMissing
+                            ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400'
+                            : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400'
+                          } ${(activePedido.estado !== 'Auditado' || isEditingHistory || audit.status === 'Agotado') && !isEditingOrder ? 'cursor-pointer hover:scale-105 transition-transform select-none' : ''}`}
+                        title={
+                          activePedido.estado === 'Auditado' && !isEditingHistory
+                            ? "Haz clic para editar"
+                            : (audit.status === 'Agotado' ? "Click para desmarcar Agotado" : undefined)
+                        }
+                      >
                         {audit.status === 'Agotado' ? <PackageX size={16} /> : (isMissing ? <XCircle size={16} /> : <AlertCircle size={16} />)}
                         <span className="text-xs font-bold">
                           {audit.status === 'Agotado'
