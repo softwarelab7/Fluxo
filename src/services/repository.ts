@@ -121,7 +121,7 @@ export const repository = {
     async addProducto(producto: Omit<Producto, 'id'>) {
         const { data, error } = await supabase
             .from('productos')
-            .insert([producto])
+            .insert([producto]) // RLS automatically sets user_id via DEFAULT auth.uid()
             .select()
             .single();
         if (error) throw error;

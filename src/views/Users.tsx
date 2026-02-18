@@ -7,6 +7,7 @@ interface Profile {
     id: string;
     email: string;
     role: 'admin' | 'employee';
+    is_approved: boolean;
     full_name?: string;
     created_at: string;
 }
@@ -47,6 +48,30 @@ export const Users: React.FC = () => {
             console.error('Error fetching users:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleApproval = async (userId: string, currentStatus: boolean) => {
+        if (currentUserRole !== 'admin') {
+            alert('Solo los administradores pueden gestionar la aprobación.');
+            return;
+        }
+
+        setUpdating(userId);
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_approved: !currentStatus })
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            setUsers(users.map(u => u.id === userId ? { ...u, is_approved: !currentStatus } : u));
+        } catch (error) {
+            console.error('Error updating approval status:', error);
+            alert('Error al actualizar el estado de aprobación');
+        } finally {
+            setUpdating(null);
         }
     };
 
@@ -99,6 +124,7 @@ export const Users: React.FC = () => {
                             <tr className="bg-slate-50 dark:bg-[#1e293b]/50 border-b border-slate-200 dark:border-[#1e293b]">
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Usuario</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rol</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Estado</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fecha Registro</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Acciones</th>
                             </tr>
@@ -119,33 +145,43 @@ export const Users: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span
-                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.role === 'admin'
-                                                ? 'bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30'
-                                                : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30'
+                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.is_approved
+                                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
+                                                : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30'
                                                 }`}
                                         >
-                                            {user.role === 'admin' ? <ShieldAlert className="w-3 h-3 mr-1" /> : <Shield className="w-3 h-3 mr-1" />}
-                                            {user.role === 'admin' ? 'Administrador' : 'Empleado'}
+                                            {user.is_approved ? 'Autorizado' : 'Pendiente'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
                                         {new Date(user.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4">
-                                        {currentUserRole === 'admin' && (
-                                            <div className="flex items-center space-x-2">
+                                        {currentUserRole === 'admin' && user.id !== supabase.auth.getUser().then(({ data }) => data.user?.id) && (
+                                            <div className="flex items-center space-x-3">
                                                 {updating === user.id ? (
                                                     <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                                                 ) : (
-                                                    <CustomSelect
-                                                        value={user.role}
-                                                        onChange={(value) => handleRoleChange(user.id, value as 'admin' | 'employee')}
-                                                        options={[
-                                                            { value: 'employee', label: 'Empleado' },
-                                                            { value: 'admin', label: 'Administrador' }
-                                                        ]}
-                                                        className="min-w-[160px]"
-                                                    />
+                                                    <>
+                                                        <CustomSelect
+                                                            value={user.role}
+                                                            onChange={(value) => handleRoleChange(user.id, value as 'admin' | 'employee')}
+                                                            options={[
+                                                                { value: 'employee', label: 'Empleado' },
+                                                                { value: 'admin', label: 'Administrador' }
+                                                            ]}
+                                                            className="min-w-[130px]"
+                                                        />
+                                                        <button
+                                                            onClick={() => handleToggleApproval(user.id, user.is_approved)}
+                                                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${user.is_approved
+                                                                ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20'
+                                                                : 'text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20'
+                                                                }`}
+                                                        >
+                                                            {user.is_approved ? 'Revocar' : 'Autorizar'}
+                                                        </button>
+                                                    </>
                                                 )}
                                             </div>
                                         )}
