@@ -75,6 +75,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     { id: 'categoria', label: 'CATEGORÍA' },
     { id: 'subcategoria', label: 'SUBCATEGORÍA' },
     { id: 'unidad', label: 'UNIDAD' },
+    { id: 'es_nueva', label: 'NUEVA REF' },
     { id: 'cantidad', label: 'CANTIDAD' },
   ];
 
@@ -96,7 +97,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     );
   };
 
-  const [cart, setCart] = useState<Record<string, { qty: number, unit: 'Unidad' | 'Paquete' }>>({});
+  const [cart, setCart] = useState<Record<string, { qty: number, unit: 'Unidad' | 'Paquete', isNew: boolean }>>({});
   const [showMobileCart, setShowMobileCart] = useState(false);
 
   // Preview State
@@ -134,7 +135,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       setCategories(cats);
       setProveedores(provs.map(p => ({ ...p, is_active: p.is_active ?? true })));
       setProducts(prods);
-      setPendingOrders(orders.filter(o => o.estado === 'Pendiente')); // Show only draftsafts
+      // Sort orders by date descending if possible, or just keep them
+      setPendingOrders(orders.filter(o => o.estado === 'Pendiente').sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime()));
 
       // Init default filters
       const activeProvs = provs.filter(p => p.is_active !== false);
@@ -160,11 +162,12 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       }
 
       // Populate Cart
-      const newCart: Record<string, { qty: number, unit: 'Unidad' | 'Paquete' }> = {};
+      const newCart: Record<string, { qty: number, unit: 'Unidad' | 'Paquete', isNew: boolean }> = {};
       items.forEach(item => {
         newCart[item.producto_id] = {
           qty: item.cantidad_pedida,
-          unit: (item.unidad as 'Unidad' | 'Paquete') || 'Unidad'
+          unit: (item.unidad as 'Unidad' | 'Paquete') || 'Unidad',
+          isNew: item.es_nueva || false
         };
       });
       setCart(newCart);
@@ -240,7 +243,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   const addToCart = (productId: string) => {
     setCart(prev => ({
       ...prev,
-      [productId]: { qty: (prev[productId]?.qty || 0) + 1, unit: 'Unidad' }
+      [productId]: {
+        qty: (prev[productId]?.qty || 0) + 1,
+        unit: 'Unidad',
+        isNew: false
+      }
     }));
   };
 
@@ -262,6 +269,13 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     setCart(prev => ({
       ...prev,
       [productId]: { ...prev[productId], unit }
+    }));
+  };
+
+  const updateCartIsNew = (productId: string, isNew: boolean) => {
+    setCart(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], isNew }
     }));
   };
 
@@ -312,11 +326,15 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     return true;
   });
 
-  const cartItems = Object.entries(cart).map(([id, data]) => ({
-    product: products.find(p => p.id === id)!,
-    qty: data.qty,
-    unit: data.unit
-  }));
+  const cartItems = Object.entries(cart).map(([id, data]) => {
+    const itemData = data as { qty: number, unit: 'Unidad' | 'Paquete', isNew: boolean };
+    return {
+      product: products.find(p => p.id === id)!,
+      qty: itemData.qty,
+      unit: itemData.unit,
+      isNew: itemData.isNew
+    };
+  });
 
   const activeContextName = useMemo(() => {
     const contextName = orderMode === 'PROVIDER'
@@ -360,10 +378,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           const existing = existingItemMap.get(item.product.id);
           if (existing) {
             // Logic to update ONLY if changed could be here, but simpler to just update qty
-            if (existing.cantidad_pedida !== item.qty || existing.unidad !== item.unit) {
+            if (existing.cantidad_pedida !== item.qty || existing.unidad !== item.unit || existing.es_nueva !== item.isNew) {
               await repository.updatePedidoItem(existing.id, {
                 cantidad_pedida: item.qty,
-                unidad: item.unit
+                unidad: item.unit,
+                es_nueva: item.isNew
               });
             }
           } else {
@@ -374,6 +393,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
               cantidad_pedida: item.qty,
               cantidad_recibida: 0,
               unidad: item.unit,
+              es_nueva: item.isNew,
               estado_item: 'No llegó' as const
             });
           }
@@ -412,6 +432,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           cantidad_pedida: item.qty,
           cantidad_recibida: 0,
           unidad: item.unit,
+          es_nueva: item.isNew,
           estado_item: 'No llegó' as const
         }));
 
@@ -509,6 +530,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         if (selectedColumns.includes('categoria')) rowData.push(categoryName);
         if (selectedColumns.includes('subcategoria')) rowData.push(subCategoryName);
         if (selectedColumns.includes('unidad')) rowData.push(item.unidad || 'Unidad');
+        if (selectedColumns.includes('es_nueva')) rowData.push(item.es_nueva ? 'SÍ' : 'NO');
         if (selectedColumns.includes('cantidad')) rowData.push(item.cantidad_pedida);
 
         return rowData;
@@ -806,6 +828,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                   <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-slate-500">Producto</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-slate-500">Tipo</th>
                       <th className="px-4 py-3 text-center text-xs font-bold text-slate-500">Unidad</th>
                       <th className="px-4 py-3 text-center text-xs font-bold text-slate-500">Cant.</th>
                     </tr>
@@ -818,6 +841,13 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                           <div className="text-xs text-slate-950 dark:text-white font-black font-mono mt-0.5">
                             {item.producto?.sku} <span className="text-slate-400 font-normal ml-1">• {item.producto?.marca?.nombre}</span>
                           </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {item.es_nueva && (
+                            <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200">
+                              NUEVA
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center text-[10px] font-black text-slate-400">
                           {item.unidad?.toUpperCase() || 'UNIDAD'}
@@ -1286,7 +1316,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 min-h-0">
-              {cartItems.map(({ product, qty, unit }) => {
+              {cartItems.map(({ product, qty, unit, isNew }) => {
                 const subCategoryName = categories.find(c => c.id === product.subcategoria_id)?.name;
                 return (
                   <div key={product.id} className="group flex flex-col bg-white dark:bg-[#0f172a] p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
@@ -1310,29 +1340,42 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                     </div>
 
                     <div className="flex items-center justify-between mt-2 gap-4">
-                      {/* Unit Selector */}
-                      <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+                      {/* Unit & New Selector */}
+                      <div className="flex flex-col gap-2">
+                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+                          <button
+                            onClick={() => updateCartUnit(product.id, 'Unidad')}
+                            className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${unit === 'Unidad'
+                              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                              }`}
+                          >
+                            UNIDAD
+                          </button>
+                          <button
+                            onClick={() => updateCartUnit(product.id, 'Paquete')}
+                            className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${unit === 'Paquete'
+                              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                              }`}
+                          >
+                            PAQUETE
+                          </button>
+                        </div>
+
                         <button
-                          onClick={() => updateCartUnit(product.id, 'Unidad')}
-                          className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${unit === 'Unidad'
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                          onClick={() => updateCartIsNew(product.id, !isNew)}
+                          className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all ${isNew
+                            ? 'bg-amber-100 border-amber-200 text-amber-700 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-400'
+                            : 'bg-slate-50 border-slate-100 text-slate-400 dark:bg-slate-800 dark:border-slate-700'
                             }`}
                         >
-                          UNIDAD
-                        </button>
-                        <button
-                          onClick={() => updateCartUnit(product.id, 'Paquete')}
-                          className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${unit === 'Paquete'
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                            }`}
-                        >
-                          PAQUETE
+                          <div className={`w-2 h-2 rounded-full ${isNew ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                          <span className="text-[9px] font-bold uppercase tracking-tight">Referencia Nueva</span>
                         </button>
                       </div>
 
-                      <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-100 dark:border-slate-700">
+                      <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-100 dark:border-slate-700 h-fit">
                         <button
                           onClick={() => updateCartQty(product.id, qty - 1)}
                           className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all font-bold text-lg leading-none pb-0.5"

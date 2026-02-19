@@ -1243,6 +1243,11 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                           Real: {item.producto_real.marca?.nombre}
                         </span>
                       )}
+                      {item.es_nueva && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-[10px] font-black text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-sm">
+                          NUEVA
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1548,6 +1553,11 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                           <span className="text-[10px] bg-white dark:bg-black/40 px-1.5 py-0.5 rounded text-slate-950 dark:text-white font-black font-mono border border-slate-200 dark:border-slate-800 shadow-sm">{p.sku}</span>
                           <span className="text-[10px] text-slate-400">{p.marca?.nombre}</span>
                           {p.categoria && <span className="text-[10px] text-blue-500 font-bold">{p.categoria.name}</span>}
+                          {p.es_nueva && (
+                            <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200">
+                              NUEVA
+                            </span>
+                          )}
                         </div>
                       </div>
                       <button
