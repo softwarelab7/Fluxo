@@ -175,7 +175,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       });
 
       const brandData = Object.entries(brandCounts)
-        .map(([name, value]) => ({ name, value }))
+        .map(([name, value]) => ({
+          name,
+          value,
+          percentage: ((value / products.length) * 100).toFixed(1)
+        }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
 
@@ -385,38 +389,81 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
+                <defs>
+                  <linearGradient id="grad0" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#2563eb" />
+                  </linearGradient>
+                  <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="100%" stopColor="#7c3aed" />
+                  </linearGradient>
+                  <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#ec4899" />
+                    <stop offset="100%" stopColor="#db2777" />
+                  </linearGradient>
+                  <linearGradient id="grad3" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#f43f5e" />
+                    <stop offset="100%" stopColor="#e11d48" />
+                  </linearGradient>
+                  <linearGradient id="grad4" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#f59e0b" />
+                    <stop offset="100%" stopColor="#d97706" />
+                  </linearGradient>
+                </defs>
                 <Pie
                   data={stats.brandData}
                   cx="50%"
                   cy="45%"
                   innerRadius={65}
                   outerRadius={85}
-                  paddingAngle={3}
-                  cornerRadius={4}
+                  paddingAngle={5}
+                  cornerRadius={6}
                   dataKey="value"
                   stroke="none"
+                  animationBegin={0}
+                  animationDuration={1500}
                 >
                   {stats.brandData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={['#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'][index % 6]}
-                      className="stroke-white dark:stroke-slate-800 stroke-[2px]"
+                      fill={`url(#grad${index % 5})`}
+                      className="hover:opacity-80 transition-opacity"
                       cursor="pointer"
-                      onClick={() => onNavigate('inventory')}
+                      onClick={() => {
+                        const brand = entry.name;
+                        // Find the brand object to get the ID if needed, but repository might expect name or just filter by name
+                        // Usually inventory filter uses brand name or ID. Let's assume onNavigate can handle it.
+                        // For inventory by brand, we'd need to know if the view supports brand filter in viewParams.
+                        const brandObj = stats.brandData.find(b => b.name === entry.name);
+                        onNavigate('inventory', { searchTerm: entry.name });
+                      }}
                     />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc', fontSize: '12px', borderRadius: '8px', padding: '8px 12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{
+                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                    borderColor: 'rgba(51, 65, 85, 0.5)',
+                    color: '#f8fafc',
+                    fontSize: '11px',
+                    borderRadius: '12px',
+                    padding: '8px 12px',
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                    backdropFilter: 'blur(8px)'
+                  }}
                   itemStyle={{ color: '#f8fafc', fontWeight: 600 }}
-                  formatter={(value: number) => [`${value} refs`, 'Productos']}
+                  formatter={(value: number, name: string, props: any) => {
+                    return [`${value} refs (${props.payload.percentage}%)`, 'Productos'];
+                  }}
                 />
                 <Legend
                   verticalAlign="bottom"
                   height={36}
                   iconType="circle"
                   iconSize={8}
-                  wrapperStyle={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}
+                  formatter={(value) => <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight ml-1">{value}</span>}
+                  wrapperStyle={{ paddingBottom: '10px' }}
                 />
               </PieChart>
             </ResponsiveContainer>
