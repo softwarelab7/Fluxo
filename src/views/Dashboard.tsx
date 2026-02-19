@@ -487,37 +487,53 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
 
           {/* Metrics Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-200 transition-all">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-0.5">Referencias</span>
-                <p className="text-2xl font-bold text-slate-800 dark:text-white">{stats.totalProducts}</p>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5">Referencias</span>
+                <p className="text-xl font-bold text-slate-800 dark:text-white">{stats.totalProducts}</p>
               </div>
-              <Box size={20} className="text-slate-400 group-hover:text-blue-500 transition-colors opacity-70" />
+              <Box size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors opacity-70" />
             </div>
 
             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-rose-200 transition-all">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-rose-500 transition-colors">Críticos</span>
-                <p className="text-2xl font-bold text-slate-800 dark:text-white group-hover:text-rose-500 transition-colors">{stats.criticalCount}</p>
+                <span className="text-[10px] font-bold text-rose-500/80 uppercase tracking-wide block mb-0.5">Alta Rot.</span>
+                <p className="text-xl font-bold text-slate-800 dark:text-white">{stats.highRotationItems.length}</p>
               </div>
-              <AlertTriangle size={20} className="text-slate-400 group-hover:text-rose-500 transition-colors opacity-70" />
-            </div>
-
-            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-200 transition-all">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-blue-500 transition-colors">En Camino</span>
-                <p className="text-2xl font-bold text-slate-800 dark:text-white group-hover:text-blue-500 transition-colors">{stats.inTransitCount}</p>
-              </div>
-              <Truck size={20} className="text-slate-400 group-hover:text-blue-500 transition-colors opacity-70" />
+              <TrendingUp size={18} className="text-rose-400 group-hover:text-rose-500 transition-colors opacity-70" />
             </div>
 
             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-amber-200 transition-all">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-amber-500 transition-colors">Borradores</span>
-                <p className="text-2xl font-bold text-slate-800 dark:text-white group-hover:text-amber-500 transition-colors">{stats.pendingOrdersCount}</p>
+                <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-wide block mb-0.5">Media Rot.</span>
+                <p className="text-xl font-bold text-slate-800 dark:text-white">{stats.mediumRotationItems.length}</p>
               </div>
-              <Clock size={20} className="text-slate-400 group-hover:text-amber-500 transition-colors opacity-70" />
+              <TrendingUp size={18} className="text-amber-400 group-hover:text-amber-500 transition-colors opacity-70" />
+            </div>
+
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-slate-400 transition-all">
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5">Baja Rot.</span>
+                <p className="text-xl font-bold text-slate-800 dark:text-white">{stats.lowRotationItems.length}</p>
+              </div>
+              <TrendingUp size={18} className="text-slate-400 group-hover:text-slate-500 transition-colors opacity-70" />
+            </div>
+
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-200 transition-all">
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-blue-500 transition-colors">En Camino</span>
+                <p className="text-xl font-bold text-slate-800 dark:text-white group-hover:text-blue-500 transition-colors">{stats.inTransitCount}</p>
+              </div>
+              <Truck size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors opacity-70" />
+            </div>
+
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-amber-200 transition-all">
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-amber-500 transition-colors">Borradores</span>
+                <p className="text-xl font-bold text-slate-800 dark:text-white group-hover:text-amber-500 transition-colors">{stats.pendingOrdersCount}</p>
+              </div>
+              <Clock size={18} className="text-slate-400 group-hover:text-amber-500 transition-colors opacity-70" />
             </div>
           </div>
 
