@@ -1145,11 +1145,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             {filtered.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 {filtered.map(product => {
-                  const inCart = cart[product.id] || 0;
+                  const inCartQty = cart[product.id]?.qty || 0;
                   const subCategoryName = categories.find(c => c.id === product.subcategoria_id)?.name;
 
                   return (
-                    <div key={product.id} className={`bg-white dark:bg-[#1e293b] rounded-2xl p-4 border transition-all duration-300 group shadow-sm hover:shadow-md flex flex-col h-full relative overflow-hidden hover:-translate-y-1 ${inCart > 0 ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500/50'}`}>
+                    <div key={product.id} className={`bg-white dark:bg-[#1e293b] rounded-2xl p-4 border transition-all duration-300 group shadow-sm hover:shadow-md flex flex-col h-full relative overflow-hidden hover:-translate-y-1 ${inCartQty > 0 ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500/50'}`}>
 
                       {/* Decorative Background Icon */}
                       <div className="absolute -right-4 -bottom-4 opacity-[0.03] dark:opacity-[0.05] group-hover:scale-125 transition-transform duration-500 pointer-events-none">
@@ -1203,7 +1203,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
                       {/* Actions Footer */}
                       <div className="mt-auto border-t border-slate-100 dark:border-slate-800 pt-3 relative z-10">
-                        {inCart === 0 ? (
+                        {inCartQty === 0 ? (
                           <button
                             onClick={() => addToCart(product.id)}
                             className="w-full py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 shadow-sm"
@@ -1214,14 +1214,14 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                         ) : (
                           <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg p-0.5 border border-blue-200 dark:border-blue-800 w-full shadow-sm">
                             <button
-                              onClick={() => updateCartQty(product.id, inCart - 1)}
+                              onClick={() => updateCartQty(product.id, inCartQty - 1)}
                               className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-all"
                             >
                               <Minus size={14} />
                             </button>
-                            <span className="font-black text-blue-600 dark:text-blue-400 text-sm">{inCart}</span>
+                            <span className="font-black text-blue-600 dark:text-blue-400 text-sm">{inCartQty}</span>
                             <button
-                              onClick={() => updateCartQty(product.id, inCart + 1)}
+                              onClick={() => updateCartQty(product.id, inCartQty + 1)}
                               className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-all"
                             >
                               <Plus size={14} />
