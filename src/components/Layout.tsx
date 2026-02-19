@@ -136,9 +136,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'inventory', label: 'Inventario', icon: Package },
+    { id: 'classification', label: 'Clasificación', icon: Bookmark },
     { id: 'orders', label: 'Nuevo Pedido', icon: ShoppingCart },
     { id: 'pending-orders', label: 'Pendientes', icon: ClipboardCheck },
-    { id: 'classification', label: 'Clasificación', icon: Bookmark },
     { id: 'audit', label: 'Auditoría', icon: Layers },
   ];
 
