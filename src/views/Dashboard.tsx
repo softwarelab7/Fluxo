@@ -76,6 +76,16 @@ const StatCard = ({ title, value, icon: Icon, color, trend, onClick }: any) => {
       trendBg: "bg-amber-100 dark:bg-amber-500/10",
       border: "group-hover:border-amber-200 dark:group-hover:border-amber-800"
     };
+  } else if (color.includes("slate") || color.includes("gray")) {
+    styles = {
+      bgFrom: "from-slate-500/5",
+      bgTo: "to-slate-600/5",
+      text: "text-slate-600 dark:text-slate-400",
+      iconBg: "bg-slate-100 dark:bg-slate-500/20",
+      trendText: "text-slate-600",
+      trendBg: "bg-slate-100 dark:bg-slate-500/10",
+      border: "group-hover:border-slate-200 dark:group-hover:border-slate-800"
+    };
   }
 
   return (
@@ -119,6 +129,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     inventoryValue: 0,
     criticalItems: [] as any[],
     highRotationItems: [] as any[],
+    mediumRotationItems: [] as any[],
+    lowRotationItems: [] as any[],
     brandData: [] as any[],
     statusData: [] as any[],
     categories: [] as any[] // Add categories to state
@@ -140,6 +152,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       const critical = products.filter(p => p.stock_actual <= p.stock_minimo);
       const highRot = products.filter(p => p.rotacion === 'alta');
+      const mediumRot = products.filter(p => p.rotacion === 'media');
+      const lowRot = products.filter(p => p.rotacion === 'baja' || !p.rotacion);
       const pending = pedidos.filter(p => p.estado === 'Pendiente');
       const inTransit = pedidos.filter(p => p.estado === 'En Camino');
 
@@ -171,8 +185,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         inTransitCount: inTransit.length,
         totalProducts: products.length,
         inventoryValue: 0,
-        criticalItems: critical, // Kept for legacy if needed, but UI will show High Rot
+        criticalItems: critical,
         highRotationItems: highRot,
+        mediumRotationItems: mediumRot,
+        lowRotationItems: lowRot,
         brandData,
         statusData,
         categories
@@ -254,7 +270,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </header>
 
       {/* Bento Grid Indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in zoom-in-95 duration-500 delay-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 animate-in fade-in zoom-in-95 duration-500 delay-100">
         <StatCard
           title="Alta Rotación"
           value={stats.highRotationItems.length}
@@ -262,6 +278,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           color="bg-rose-500"
           trend="Prioridad"
           onClick={() => onNavigate('inventory', { rotation: 'alta' })}
+        />
+        <StatCard
+          title="Media Rotación"
+          value={stats.mediumRotationItems.length}
+          icon={TrendingUp}
+          color="bg-amber-500"
+          onClick={() => onNavigate('inventory', { rotation: 'media' })}
+        />
+        <StatCard
+          title="Baja Rotación"
+          value={stats.lowRotationItems.length}
+          icon={TrendingUp}
+          color="bg-slate-500"
+          onClick={() => onNavigate('inventory', { rotation: 'baja' })}
         />
         <StatCard
           title={stats.inTransitCount > 0 ? "En Camino" : "Borradores"}
