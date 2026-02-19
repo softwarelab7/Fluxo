@@ -174,14 +174,25 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         brandCounts[brandName] = (brandCounts[brandName] || 0) + 1;
       });
 
-      const brandData = Object.entries(brandCounts)
-        .map(([name, value]) => ({
-          name,
-          value,
-          percentage: ((value / products.length) * 100).toFixed(1)
-        }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5);
+      const allBrandData = Object.entries(brandCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+      const top5 = allBrandData.slice(0, 5);
+      const othersValue = allBrandData.slice(5).reduce((acc, curr) => acc + curr.value, 0);
+
+      const brandData = top5.map(b => ({
+        ...b,
+        percentage: ((b.value / products.length) * 100).toFixed(1)
+      }));
+
+      if (othersValue > 0) {
+        brandData.push({
+          name: 'Otras',
+          value: othersValue,
+          percentage: ((othersValue / products.length) * 100).toFixed(1)
+        });
+      }
 
       setStats({
         criticalCount: critical.length,
