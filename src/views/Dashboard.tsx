@@ -25,7 +25,13 @@ import {
   ChevronRight,
   Truck,
   FileText,
-  Calendar
+  Calendar,
+  Zap,
+  BarChart3,
+  Medal,
+  Activity,
+  PlusCircle,
+  CheckCircle
 } from 'lucide-react';
 import { repository } from '../services/repository';
 import Modal from '../components/Modal';
@@ -156,6 +162,55 @@ const renderActiveShape = (props: any) => {
   );
 };
 
+const calculateWeeklyAnalysis = (products: any[], pedidos: any[]) => {
+  const now = new Date();
+  const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const weeklyOrders = pedidos.filter(p => new Date(p.created_at || p.fecha_creacion) >= lastWeek);
+  const auditedWeekly = weeklyOrders.filter(p => p.estado === 'Auditado');
+
+  let totalItems = 0;
+  let acceptedItems = 0;
+
+  auditedWeekly.forEach(p => {
+    const items = p.items || [];
+    totalItems += items.length;
+    acceptedItems += items.filter((i: any) => i.estado_item === 'Aceptado').length;
+  });
+
+  const efficiency = totalItems > 0 ? Math.round((acceptedItems / totalItems) * 100) : 0;
+  const newProds = products.filter(p => new Date(p.created_at) >= lastWeek);
+
+  const growth = products.length > newProds.length
+    ? Math.round((newProds.length / (products.length - newProds.length)) * 100)
+    : 100;
+
+  const supplierVolume: Record<string, { val: number, count: number }> = {};
+  auditedWeekly.forEach(p => {
+    const name = p.proveedor?.nombre || 'Desconocido';
+    const itemsCount = p.items?.length || 0;
+    if (!supplierVolume[name]) supplierVolume[name] = { val: 0, count: 0 };
+    supplierVolume[name].val += itemsCount;
+    supplierVolume[name].count += 1;
+  });
+
+  const topSuppliers = Object.entries(supplierVolume)
+    .map(([name, data]) => ({ name, value: data.val, count: data.count }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3);
+
+  const recentHigh = newProds.filter(p => p.rotacion === 'alta');
+
+  return {
+    weeklyAudits: auditedWeekly.length,
+    receptionEfficiency: efficiency,
+    newReferences: newProds.length,
+    inventoryGrowth: growth,
+    topSuppliers,
+    newHighRotation: recentHigh.slice(0, 5)
+  };
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -170,7 +225,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     lowRotationItems: [] as any[],
     brandData: [] as any[],
     statusData: [] as any[],
-    categories: [] as any[] // Add categories to state
+    categories: [] as any[],
+    // Analysis Metrics
+    weeklyAudits: 0,
+    receptionEfficiency: 0,
+    newReferences: 0,
+    inventoryGrowth: 0,
+    topSuppliers: [] as { name: string, value: number, count: number }[],
+    newHighRotation: [] as any[]
   });
   const [showReportModal, setShowReportModal] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -252,7 +314,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         lowRotationItems: lowRot,
         brandData,
         statusData,
-        categories
+        categories,
+        // Calculate Analysis Metrics
+        ...calculateWeeklyAnalysis(products, pedidos)
       });
     } catch (error) {
       console.error("Error loading dashboard:", error);
@@ -595,122 +659,126 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <Modal
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
-        title="Reporte Semanal"
-        maxWidth="sm:max-w-xl"
+        title="Resumen Ejecutivo de Inventario"
+        maxWidth="sm:max-w-2xl"
         footer={
-          <div className="w-full flex justify-between items-center">
-            <p className="text-xs text-slate-400 font-medium">Actualizado: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+          <div className="w-full flex justify-between items-center px-2">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Análisis generado por Fluxo Engine v2</p>
             <button
               onClick={() => setShowReportModal(false)}
-              className="px-5 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity"
+              className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-xs hover:scale-105 active:scale-95 transition-all shadow-lg"
             >
-              Cerrar
+              ENTENDIDO
             </button>
           </div>
         }
       >
-        <div className="space-y-3">
-          {/* Header Info */}
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-blue-50 dark:bg-blue-500/10 rounded-lg">
-                <Calendar size={18} className="text-blue-600 dark:text-blue-400" />
+        <div className="space-y-6 p-1">
+          {/* Header Analytics */}
+          <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <BarChart3 size={24} className="text-white" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana Actual</p>
-                <h2 className="text-sm font-bold text-slate-800 dark:text-white capitalize">
-                  {new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}
-                </h2>
+                <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-0.5">Reporte de Desempeño</p>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none">
+                    {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - {new Date().toLocaleDateString(undefined, { year: 'numeric' })}
+                  </h2>
+                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-black rounded-full uppercase">Al Día</span>
+                </div>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 rounded-full border border-emerald-100 dark:border-emerald-500/20">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">100% Operativo</span>
             </div>
           </div>
 
-          {/* Metrics Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-200 transition-all">
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5">Referencias</span>
-                <p className="text-xl font-bold text-slate-800 dark:text-white">{stats.totalProducts}</p>
-              </div>
-              <Box size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors opacity-70" />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Left Column: Core Performance */}
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                <Activity size={12} className="text-blue-500" /> Rendimiento Semanal
+              </h3>
 
-            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-rose-200 transition-all">
-              <div>
-                <span className="text-[10px] font-bold text-rose-500/80 uppercase tracking-wide block mb-0.5">Alta Rot.</span>
-                <p className="text-xl font-bold text-slate-800 dark:text-white">{stats.highRotationItems.length}</p>
-              </div>
-              <TrendingUp size={18} className="text-rose-400 group-hover:text-rose-500 transition-colors opacity-70" />
-            </div>
-
-            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-amber-200 transition-all">
-              <div>
-                <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-wide block mb-0.5">Media Rot.</span>
-                <p className="text-xl font-bold text-slate-800 dark:text-white">{stats.mediumRotationItems.length}</p>
-              </div>
-              <TrendingUp size={18} className="text-amber-400 group-hover:text-amber-500 transition-colors opacity-70" />
-            </div>
-
-            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-slate-400 transition-all">
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5">Baja Rot.</span>
-                <p className="text-xl font-bold text-slate-800 dark:text-white">{stats.lowRotationItems.length}</p>
-              </div>
-              <TrendingUp size={18} className="text-slate-400 group-hover:text-slate-500 transition-colors opacity-70" />
-            </div>
-
-            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-200 transition-all">
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-blue-500 transition-colors">En Camino</span>
-                <p className="text-xl font-bold text-slate-800 dark:text-white group-hover:text-blue-500 transition-colors">{stats.inTransitCount}</p>
-              </div>
-              <Truck size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors opacity-70" />
-            </div>
-
-            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-amber-200 transition-all">
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-0.5 group-hover:text-amber-500 transition-colors">Borradores</span>
-                <p className="text-xl font-bold text-slate-800 dark:text-white group-hover:text-amber-500 transition-colors">{stats.pendingOrdersCount}</p>
-              </div>
-              <Clock size={18} className="text-slate-400 group-hover:text-amber-500 transition-colors opacity-70" />
-            </div>
-          </div>
-
-          {/* Critical Items List */}
-          {stats.criticalItems.length > 0 && (
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between px-1">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Alertas ({stats.criticalItems.length})</h4>
-                {stats.criticalItems.length > 3 && (
-                  <button onClick={() => onNavigate('inventory')} className="text-xs font-bold text-blue-600 hover:underline">Ver todo</button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {stats.criticalItems.slice(0, 4).map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800/50 hover:shadow-sm transition-all">
-                    <div className="flex items-center space-x-3 min-w-0">
-                      <div className="h-7 w-7 rounded-lg bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center text-xs font-bold text-rose-600 dark:text-rose-400 shrink-0">
-                        {p.sku.slice(0, 2)}
-                      </div>
-                      <div className="truncate">
-                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">{p.nombre}</p>
-                        <p className="text-[10px] text-slate-950 dark:text-white font-black leading-none mt-1 bg-white/50 dark:bg-black/20 px-1 rounded">{p.sku}</p>
-                      </div>
-                    </div>
-                    <div className="text-right ml-2 shrink-0">
-                      <p className="text-sm font-bold text-rose-500">{p.stock_actual} <span className="text-[10px] text-slate-400 font-normal">/ {p.stock_minimo}</span></p>
-                    </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800/50 shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Auditorías</p>
+                  <p className="text-3xl font-black text-slate-800 dark:text-white">{stats.weeklyAudits}</p>
+                  <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-blue-500">
+                    <CheckCircle size={10} /> 7 días
                   </div>
-                ))}
+                </div>
+                <div className="p-4 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800/50 shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Eficiencia</p>
+                  <p className="text-3xl font-black text-emerald-500">{stats.receptionEfficiency}%</p>
+                  <div className="mt-2 h-1 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500" style={{ width: `${stats.receptionEfficiency}%` }}></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl text-white shadow-lg shadow-indigo-500/20">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase opacity-80 tracking-widest">Nuevas Referencias</p>
+                    <p className="text-4xl font-black leading-none mt-1">+{stats.newReferences}</p>
+                  </div>
+                  <PlusCircle size={32} className="opacity-40" />
+                </div>
+                <p className="text-[11px] font-medium opacity-90">
+                  Tu catálogo ha crecido un <span className="font-black underline">{stats.inventoryGrowth}%</span> esta semana.
+                </p>
               </div>
             </div>
-          )}
+
+            {/* Right Column: Insights & Logistics */}
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                <Medal size={12} className="text-amber-500" /> Logística & Proveedores
+              </h3>
+
+              <div className="p-5 bg-white dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800/50 shadow-sm">
+                <p className="text-[10px] font-black text-slate-500 uppercase mb-4 tracking-tighter">Top 3 Aliados Estratégicos (Volumen)</p>
+                <div className="space-y-4">
+                  {stats.topSuppliers.length > 0 ? stats.topSuppliers.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${i === 0 ? 'bg-amber-100 text-amber-600' :
+                          i === 1 ? 'bg-slate-100 text-slate-600' :
+                            'bg-orange-100 text-orange-600'
+                          }`}>
+                          {i + 1}
+                        </div>
+                        <p className="text-xs font-black text-slate-700 dark:text-slate-200 uppercase truncate max-w-[120px]">{s.name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-black text-slate-800 dark:text-white leading-none">{s.value} <span className="text-[10px] font-normal text-slate-400">Refs</span></p>
+                        <p className="text-[10px] font-bold text-slate-400">{s.count} Pedidos</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-center py-4 text-xs font-medium text-slate-400 italic">No hay actividad registrada aún.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Rotation Alerts Section */}
+              {stats.newHighRotation.length > 0 && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-100 dark:border-amber-900/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Zap size={14} className="text-amber-500 fill-amber-500" />
+                    <h4 className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wide">Boom en Rotación</h4>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {stats.newHighRotation.map((p, i) => (
+                      <span key={i} className="px-2 py-1 bg-white dark:bg-slate-900 rounded-lg text-[10px] font-black text-slate-600 dark:text-slate-300 border border-amber-200 dark:border-amber-800/50">
+                        {p.sku}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </Modal>
     </div >
