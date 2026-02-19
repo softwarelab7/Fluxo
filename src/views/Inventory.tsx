@@ -998,8 +998,8 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
 
                     {/* Top Tags */}
                     <div className="flex flex-wrap gap-2 mb-3 items-center">
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 capitalize">
-                        {p.marca?.nombre?.toLowerCase() || 'genérico'}
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                        {p.marca?.nombre || 'genérico'}
                       </span>
                       {p.subcategoria_id && (
                         <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-100 dark:border-violet-500/20 capitalize">
