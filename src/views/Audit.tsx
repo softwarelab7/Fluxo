@@ -872,14 +872,14 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       <PackageCheck size={16} className="mr-2 opacity-70" />
                       <span>{p.total_items} referencias</span>
                     </div>
-                    {p.estado === 'Auditado' && (
+                    {(p.estado === 'Auditado' || p.estado === 'En Camino') && (
                       <span className="text-[10px] font-black text-blue-500 dark:text-blue-400">
                         {calculatePedidoProgress(p)}%
                       </span>
                     )}
                   </div>
 
-                  {p.estado === 'Auditado' && (
+                  {(p.estado === 'Auditado' || p.estado === 'En Camino') && (
                     <div className="h-1.5 w-full bg-slate-100 dark:bg-black/20 rounded-full overflow-hidden mb-1">
                       <div
                         className="h-full bg-blue-500 transition-all duration-1000 ease-out"
