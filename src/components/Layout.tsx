@@ -24,6 +24,9 @@ import {
 } from 'lucide-react';
 import { Logo } from './Logo';
 
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useTheme } from './ThemeProvider';
+
 interface SidebarItemProps {
   icon: React.ElementType;
   label: string;
@@ -55,39 +58,30 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, active, on
 
 interface LayoutProps {
   children: React.ReactNode;
-  activeView: string;
-  setActiveView: (view: string) => void;
   userRole?: 'admin' | 'employee' | null;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, userRole }) => {
+const Layout: React.FC<LayoutProps> = ({ children, userRole }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isDark, setIsDark] = useState(true);
   const [missingCount, setMissingCount] = useState(0);
   const [outOfStockCount, setOutOfStockCount] = useState(0);
-  const [isNotificationsOpen, setNotificationsOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
 
-  // Initialize theme
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isDark = theme === 'dark';
+
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-
-    setIsDark(shouldBeDark);
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-
     checkMissingItems();
     const interval = setInterval(checkMissingItems, 5000); // Check every 5s
     return () => clearInterval(interval);
   }, []);
 
+  // Check missing items on route change
   useEffect(() => {
     checkMissingItems();
-  }, [activeView]);
+  }, [location.pathname]);
 
   const checkMissingItems = async () => {
     try {
@@ -118,15 +112,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
   };
 
   const toggleTheme = () => {
-    const newDark = !isDark;
-    setIsDark(newDark);
-    if (newDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
+    setTheme(isDark ? "light" : "dark");
   };
 
   const handleLogout = async () => {
@@ -134,23 +120,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
   };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'inventory', label: 'Inventario', icon: Package },
-    { id: 'classification', label: 'Clasificación', icon: Bookmark },
-    { id: 'orders', label: 'Nuevo Pedido', icon: ShoppingCart },
-    { id: 'pending-orders', label: 'Pendientes', icon: ClipboardCheck },
-    { id: 'audit', label: 'Auditoría', icon: Layers },
+    { id: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { id: '/inventory', label: 'Inventario', icon: Package },
+    { id: '/classification', label: 'Clasificación', icon: Bookmark },
+    { id: '/orders', label: 'Nuevo Pedido', icon: ShoppingCart },
+    { id: '/pending-orders', label: 'Pendientes', icon: ClipboardCheck },
+    { id: '/audit', label: 'Auditoría', icon: Layers },
   ];
-
-  // Users and Suppliers moved to Settings
-
-
-  const pageTitle = menuItems.find(item => item.id === activeView)?.label || 'Fluxo';
 
   const navItems = [...menuItems];
   // Faltantes
   navItems.push({
-    id: 'missing-items',
+    id: '/missing-items',
     label: 'Faltantes',
     icon: AlertTriangle,
     // @ts-ignore
@@ -161,7 +142,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
 
   // Agotados
   navItems.push({
-    id: 'out-of-stock',
+    id: '/out-of-stock',
     label: 'Agotados',
     icon: PackageX,
     // @ts-ignore
@@ -206,13 +187,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
                 key={item.id}
                 icon={item.icon}
                 label={item.label}
-                active={activeView === item.id}
+                active={location.pathname === item.id || (item.id !== '/' && location.pathname.startsWith(item.id))}
                 // @ts-ignore
                 badge={item.badge}
                 // @ts-ignore
                 variant={item.variant}
                 onClick={() => {
-                  setActiveView(item.id);
+                  navigate(item.id);
                   setSidebarOpen(false);
                 }}
               />
@@ -232,8 +213,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
           <SidebarItem
             icon={Settings}
             label="Configuración"
-            onClick={() => setActiveView('settings')}
-            active={activeView === 'settings'}
+            onClick={() => navigate('/settings')}
+            active={location.pathname === '/settings'}
           />
 
           <button

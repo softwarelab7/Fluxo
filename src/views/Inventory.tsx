@@ -33,14 +33,10 @@ import * as XLSXReader from 'xlsx'; // For reading
 import { Producto, Marca, Categoria } from '../types';
 import { Skeleton } from '../components/Skeleton';
 
-interface InventoryProps {
-  initialFilters?: {
-    rotation?: 'alta' | 'media' | 'baja';
-    // stock?: 'critico'; // Removed as per user request
-  };
-}
+import { useSearchParams } from 'react-router-dom';
 
-const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
+const Inventory: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Producto[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
@@ -83,16 +79,32 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
   });
 
   useEffect(() => {
-    if (initialFilters) {
-      if (initialFilters.rotation === 'alta') {
-        setShowHighRotation(true);
-        setShowMediumRotation(false);
-      } else if (initialFilters.rotation === 'media') {
-        setShowMediumRotation(true);
-        setShowHighRotation(false);
-      }
+    const rotation = searchParams.get('rotation');
+    const search = searchParams.get('searchTerm');
+
+    if (rotation === 'alta') {
+      setShowHighRotation(true);
+      setShowMediumRotation(false);
+    } else if (rotation === 'media') {
+      setShowMediumRotation(true);
+      setShowHighRotation(false);
+    } else if (rotation === 'baja') {
+      setShowHighRotation(false);
+      setShowMediumRotation(false);
+      // Maybe add state for low rotation if needed, but currently logic implies if neither, then low is not filtered out unless filtered specifically?
+      // Actually the logic in filtered says:
+      // if (showHighRotation && p.rotacion !== 'alta') matchesRotation = false;
+      // So strict filtering.
+    } else {
+      // Reset if no param? Or keep persistence? Resetting usually better on fresh nav
+      setShowHighRotation(false);
+      setShowMediumRotation(false);
     }
-  }, [initialFilters]);
+
+    if (search) {
+      setSearchTerm(search);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadData();

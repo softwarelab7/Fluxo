@@ -37,94 +37,8 @@ import { repository } from '../services/repository';
 import Modal from '../components/Modal';
 import { Skeleton } from '../components/Skeleton';
 
-interface DashboardProps {
-  onNavigate: (view: string, params?: any) => void;
-}
-
-const StatCard = ({ title, value, icon: Icon, color, trend, onClick }: any) => {
-  // Extract base color styles
-  let styles = {
-    bgFrom: "from-blue-500/5",
-    bgTo: "to-blue-600/5",
-    text: "text-blue-600 dark:text-blue-400",
-    iconBg: "bg-blue-100 dark:bg-blue-500/20",
-    trendText: "text-blue-600",
-    trendBg: "bg-blue-100 dark:bg-blue-500/10",
-    border: "group-hover:border-blue-200 dark:group-hover:border-blue-800"
-  };
-
-  if (color.includes("rose") || color.includes("red")) {
-    styles = {
-      bgFrom: "from-rose-500/5",
-      bgTo: "to-rose-600/5",
-      text: "text-rose-600 dark:text-rose-400",
-      iconBg: "bg-rose-100 dark:bg-rose-500/20",
-      trendText: "text-rose-600",
-      trendBg: "bg-rose-100 dark:bg-rose-500/10",
-      border: "group-hover:border-rose-200 dark:group-hover:border-rose-800"
-    };
-  } else if (color.includes("emerald") || color.includes("green")) {
-    styles = {
-      bgFrom: "from-emerald-500/5",
-      bgTo: "to-emerald-600/5",
-      text: "text-emerald-600 dark:text-emerald-400",
-      iconBg: "bg-emerald-100 dark:bg-emerald-500/20",
-      trendText: "text-emerald-600",
-      trendBg: "bg-emerald-100 dark:bg-emerald-500/10",
-      border: "group-hover:border-emerald-200 dark:group-hover:border-emerald-800"
-    };
-  } else if (color.includes("amber") || color.includes("yellow")) {
-    styles = {
-      bgFrom: "from-amber-500/5",
-      bgTo: "to-amber-600/5",
-      text: "text-amber-600 dark:text-amber-400",
-      iconBg: "bg-amber-100 dark:bg-amber-500/20",
-      trendText: "text-amber-600",
-      trendBg: "bg-amber-100 dark:bg-amber-500/10",
-      border: "group-hover:border-amber-200 dark:group-hover:border-amber-800"
-    };
-  } else if (color.includes("slate") || color.includes("gray")) {
-    styles = {
-      bgFrom: "from-slate-500/5",
-      bgTo: "to-slate-600/5",
-      text: "text-slate-600 dark:text-slate-400",
-      iconBg: "bg-slate-100 dark:bg-slate-500/20",
-      trendText: "text-slate-600",
-      trendBg: "bg-slate-100 dark:bg-slate-500/10",
-      border: "group-hover:border-slate-200 dark:group-hover:border-slate-800"
-    };
-  }
-
-  return (
-    <GlassCard
-      onClick={onClick}
-      className={`flex flex-col justify-between h-full group transition-all duration-300 shadow-sm hover:shadow-lg relative overflow-hidden bg-gradient-to-br ${styles.bgFrom} ${styles.bgTo} to-transparent border-slate-200 dark:border-slate-800 ${styles.border} ${onClick ? 'cursor-pointer' : ''}`}
-    >
-
-      {/* Decorative Background Icon */}
-      <div className={`absolute -bottom-4 -right-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity duration-500 pointer-events-none`}>
-        <Icon size={120} className={styles.text} />
-      </div>
-
-      <div className="relative z-10 flex justify-between items-start mb-4">
-        <div className={`p-2.5 rounded-xl ${styles.iconBg} backdrop-blur-sm shadow-sm border border-white/20 group-hover:scale-110 transition-transform duration-300`}>
-          <Icon size={20} className={styles.text} />
-        </div>
-
-        {trend && (
-          <span className={`flex items-center text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${styles.trendBg} ${styles.trendText} border border-transparent group-hover:border-current transition-colors`}>
-            {trend} <ArrowUpRight size={12} className="ml-1" />
-          </span>
-        )}
-      </div>
-
-      <div className="relative z-10">
-        <p className="text-slate-500 dark:text-slate-400 text-xs font-bold tracking-widest uppercase mb-1">{title}</p>
-        <h3 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{value}</h3>
-      </div>
-    </GlassCard>
-  );
-};
+import { useNavigate } from 'react-router-dom';
+import { StatCard } from '../components/StatCard';
 
 const renderActiveShape = (props: any) => {
   const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percentage } = props;
@@ -211,7 +125,8 @@ const calculateWeeklyAnalysis = (products: any[], pedidos: any[]) => {
   };
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     criticalCount: 0,
@@ -334,6 +249,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       const rotationName = data.activePayload[0].payload.name;
       const rotation = rotationName === 'Alta' ? 'alta' : rotationName === 'Media' ? 'media' : 'baja';
       onNavigate('inventory', { rotation });
+      navigate(`/inventory?rotation=${rotation}`);
     }
   };
 
@@ -386,7 +302,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="flex space-x-2">
           <button onClick={handleWeeklyReport} className="px-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-[#334155] rounded-full text-sm font-bold hover:bg-slate-50 dark:hover:bg-[#334155] text-slate-700 dark:text-slate-300 transition-all shadow-sm">Reporte Semanal</button>
           <button
-            onClick={() => onNavigate('orders')}
+            onClick={() => navigate('/orders')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 text-white"
           >
             Nuevo Pedido
@@ -402,21 +318,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           icon={TrendingUp}
           color="bg-rose-500"
           trend="Prioridad"
-          onClick={() => onNavigate('inventory', { rotation: 'alta' })}
+          onClick={() => navigate('/inventory?rotation=alta')}
         />
         <StatCard
           title="Media Rotación"
           value={stats.mediumRotationItems.length}
           icon={TrendingUp}
           color="bg-amber-500"
-          onClick={() => onNavigate('inventory', { rotation: 'media' })}
+          onClick={() => navigate('/inventory?rotation=media')}
         />
         <StatCard
           title="Baja Rotación"
           value={stats.lowRotationItems.length}
           icon={TrendingUp}
           color="bg-slate-500"
-          onClick={() => onNavigate('inventory', { rotation: 'baja' })}
+          onClick={() => navigate('/inventory?rotation=baja')}
         />
         <StatCard
           title={stats.inTransitCount > 0 ? "En Camino" : "Borradores"}
@@ -424,14 +340,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           icon={stats.inTransitCount > 0 ? Truck : Clock}
           color={stats.inTransitCount > 0 ? "bg-blue-500" : "bg-amber-500"}
           trend={stats.inTransitCount > 0 ? "Por Recibir" : undefined}
-          onClick={() => onNavigate(stats.inTransitCount > 0 ? 'audit' : 'pending-orders')}
+          onClick={() => navigate(stats.inTransitCount > 0 ? '/audit' : '/pending-orders')}
         />
         <StatCard
           title="Total Referencias"
           value={stats.totalProducts}
           icon={Box}
           color="bg-blue-500"
-          onClick={() => onNavigate('inventory')}
+          onClick={() => navigate('/inventory')}
         />
       </div>
 
@@ -442,7 +358,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Top - Alta Rotación</h3>
               <button
-                onClick={() => onNavigate('inventory', { rotation: 'alta' })}
+                onClick={() => navigate('/inventory?rotation=alta')}
                 className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:text-blue-500 dark:hover:text-blue-300 transition-colors flex items-center gap-1 group"
               >
                 Ver todo <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -460,7 +376,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-[#334155]">
                   {stats.highRotationItems.slice(0, 5).map(p => (
-                    <tr key={p.id} onClick={() => onNavigate('inventory', { rotation: 'alta' })} className="group hover:bg-slate-50 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-lg cursor-pointer">
+                    <tr key={p.id} onClick={() => navigate('/inventory?rotation=alta')} className="group hover:bg-slate-50 dark:hover:bg-[#334155]/20 transition-all duration-300 border-b border-slate-200 dark:border-[#334155] last:border-0 relative hover:shadow-lg cursor-pointer">
                       <td className="py-2 pl-4">
                         <div className="flex items-center space-x-3">
                           <div className="p-2.5 bg-rose-500/10 rounded-xl group-hover:bg-rose-500/20 transition-colors group-hover:scale-110 duration-300">
@@ -569,7 +485,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                         className="transition-all duration-500"
                         cursor="pointer"
                         onClick={() => {
-                          onNavigate('inventory', { searchTerm: entry.name });
+                          navigate(`/inventory?searchTerm=${encodeURIComponent(entry.name)}`);
                         }}
                       />
                     ))}
@@ -602,7 +518,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   key={entry.name}
                   onMouseEnter={() => setActiveIndex(index)}
                   onMouseLeave={onPieLeave}
-                  onClick={() => onNavigate('inventory', { searchTerm: entry.name })}
+                  onClick={() => navigate(`/inventory?searchTerm=${encodeURIComponent(entry.name)}`)}
                   className={`group p-2.5 rounded-xl border transition-all duration-300 cursor-pointer flex flex-col gap-1.5 ${activeIndex === index
                     ? 'bg-white dark:bg-white/5 border-blue-500/30 shadow-md translate-x-1'
                     : 'bg-transparent border-transparent hover:bg-slate-100 dark:hover:bg-white/5'
