@@ -576,9 +576,17 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
       await repository.deleteProducto(deleteConfirmation);
       await loadData();
       addToast("Producto eliminado correctamente", "success");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      addToast("Error al eliminar producto", "error");
+      const isForeignKeyError = error?.code === '23503' ||
+        error?.message?.toLowerCase().includes('foreign key') ||
+        error?.message?.toLowerCase().includes('violates foreign key constraint');
+
+      if (isForeignKeyError) {
+        addToast("No se puede eliminar: este producto tiene pedidos o historial asociado. Prueba cambiándolo a rotación 'Baja'.", "error");
+      } else {
+        addToast("Error al eliminar producto", "error");
+      }
     } finally {
       setDeleteConfirmation(null);
     }
