@@ -431,20 +431,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
 
         {/* Brand Distribution Chart */}
-        <GlassCard className="h-full flex flex-col p-6 relative overflow-hidden bg-white/50 dark:bg-slate-900/50">
-          <div className="flex justify-between items-center mb-6 relative z-10">
+        <GlassCard className="h-full flex flex-col p-4 sm:p-6 relative overflow-hidden bg-white/50 dark:bg-slate-900/50">
+          <div className="flex justify-between items-center mb-4 sm:mb-6 relative z-10">
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Distribución por Marca</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">Top 5 + Otras</p>
+              <h3 className="text-[12px] sm:text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Distribución por Marca</h3>
+              <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">Top 5 + Otras</p>
             </div>
-            <div className="p-2 bg-blue-500/10 rounded-lg">
-              <TrendingUp size={16} className="text-blue-600 dark:text-blue-400" />
+            <div className="p-1.5 sm:p-2 bg-blue-500/10 rounded-lg">
+              <TrendingUp size={14} className="text-blue-600 dark:text-blue-400 sm:w-4 sm:h-4" />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-[280px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 flex-1 min-h-[280px]">
             {/* Left: Chart */}
-            <div className="relative h-full min-h-[220px]">
+            <div className="relative h-[220px] sm:h-full min-h-[200px] sm:min-h-[220px]">
               {/* Default Center Metric (if nothing hovered) */}
               {activeIndex === -1 && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transform -translate-y-2">
@@ -487,8 +487,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     data={stats.brandData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
+                    innerRadius="65%"
+                    outerRadius="85%"
                     paddingAngle={activeIndex !== -1 ? 8 : 4}
                     cornerRadius={8}
                     dataKey="value"
