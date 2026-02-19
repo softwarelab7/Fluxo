@@ -10,7 +10,8 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid
+  CartesianGrid,
+  Sector
 } from 'recharts';
 
 import React, { useState, useEffect } from 'react';
@@ -119,6 +120,42 @@ const StatCard = ({ title, value, icon: Icon, color, trend, onClick }: any) => {
   );
 };
 
+const renderActiveShape = (props: any) => {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percentage } = props;
+
+  return (
+    <g>
+      <text x={cx} y={cy - 8} textAnchor="middle" fill={fill} className="text-[10px] font-black uppercase tracking-tighter transition-all duration-300">
+        {payload.name}
+      </text>
+      <text x={cx} y={cy + 12} textAnchor="middle" fill="#94a3b8" className="text-[9px] uppercase font-black tracking-widest opacity-80">
+        {payload.value} Refs ({percentage}%)
+      </text>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 6}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+        cornerRadius={10}
+      />
+      <Sector
+        cx={cx}
+        cy={cy}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        innerRadius={outerRadius + 10}
+        outerRadius={outerRadius + 13}
+        fill={fill}
+        cornerRadius={4}
+        opacity={0.3}
+      />
+    </g>
+  );
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -136,6 +173,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     categories: [] as any[] // Add categories to state
   });
   const [showReportModal, setShowReportModal] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const onPieEnter = (_: any, index: number) => {
+    setActiveIndex(index);
+  };
+
+  const onPieLeave = () => {
+    setActiveIndex(-1);
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -385,99 +431,139 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
 
         {/* Brand Distribution Chart */}
-        <GlassCard className="h-full flex flex-col p-4 relative overflow-hidden">
-          <h3 className="text-sm font-bold mb-2 text-slate-900 dark:text-slate-100 relative z-10">Distribución por Marca</h3>
+        <GlassCard className="h-full flex flex-col p-6 relative overflow-hidden bg-white/50 dark:bg-slate-900/50">
+          <div className="flex justify-between items-center mb-6 relative z-10">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Distribución por Marca</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">Top 5 + Otras</p>
+            </div>
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <TrendingUp size={16} className="text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
 
-          {/* Background Decorative Gradient */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -z-0 pointer-events-none"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-[280px]">
+            {/* Left: Chart */}
+            <div className="relative h-full min-h-[220px]">
+              {/* Default Center Metric (if nothing hovered) */}
+              {activeIndex === -1 && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none transform -translate-y-2">
+                  <span className="text-4xl font-black text-slate-800 dark:text-white animate-in zoom-in duration-500">{stats.totalProducts}</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-60">Referencias</span>
+                </div>
+              )}
 
-          <div className="flex-1 w-full min-h-[200px] relative">
-            {/* Center Metric */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-              <span className="text-3xl font-black text-slate-800 dark:text-white">{stats.totalProducts}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ref.</span>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <defs>
+                    <linearGradient id="grad0" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#2563eb" />
+                    </linearGradient>
+                    <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" />
+                      <stop offset="100%" stopColor="#7c3aed" />
+                    </linearGradient>
+                    <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#ec4899" />
+                      <stop offset="100%" stopColor="#db2777" />
+                    </linearGradient>
+                    <linearGradient id="grad3" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#f43f5e" />
+                      <stop offset="100%" stopColor="#e11d48" />
+                    </linearGradient>
+                    <linearGradient id="grad4" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#f59e0b" />
+                      <stop offset="100%" stopColor="#d97706" />
+                    </linearGradient>
+                    <linearGradient id="grad5" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#94a3b8" />
+                      <stop offset="100%" stopColor="#64748b" />
+                    </linearGradient>
+                  </defs>
+                  <Pie
+                    activeIndex={activeIndex}
+                    activeShape={renderActiveShape}
+                    data={stats.brandData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={activeIndex !== -1 ? 8 : 4}
+                    cornerRadius={8}
+                    dataKey="value"
+                    stroke="none"
+                    animationBegin={0}
+                    animationDuration={1500}
+                    onMouseEnter={onPieEnter}
+                    onMouseLeave={onPieLeave}
+                  >
+                    {stats.brandData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={`url(#grad${index % 6})`}
+                        className="transition-all duration-500"
+                        cursor="pointer"
+                        onClick={() => {
+                          onNavigate('inventory', { searchTerm: entry.name });
+                        }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-slate-900/95 backdrop-blur-md border border-white/10 p-3 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-white">{payload[0].value} Productos</span>
+                              <span className="text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded text-white/70">{payload[0].payload.percentage}%</span>
+                            </div>
+                            <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase italic">Click para filtrar inventario</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
 
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <defs>
-                  <linearGradient id="grad0" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#2563eb" />
-                  </linearGradient>
-                  <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#7c3aed" />
-                  </linearGradient>
-                  <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#ec4899" />
-                    <stop offset="100%" stopColor="#db2777" />
-                  </linearGradient>
-                  <linearGradient id="grad3" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#f43f5e" />
-                    <stop offset="100%" stopColor="#e11d48" />
-                  </linearGradient>
-                  <linearGradient id="grad4" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#f59e0b" />
-                    <stop offset="100%" stopColor="#d97706" />
-                  </linearGradient>
-                </defs>
-                <Pie
-                  data={stats.brandData}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={65}
-                  outerRadius={85}
-                  paddingAngle={5}
-                  cornerRadius={6}
-                  dataKey="value"
-                  stroke="none"
-                  animationBegin={0}
-                  animationDuration={1500}
+            {/* Right: Detailed Legend */}
+            <div className="flex flex-col justify-center space-y-3">
+              {stats.brandData.map((entry, index) => (
+                <div
+                  key={entry.name}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onMouseLeave={onPieLeave}
+                  onClick={() => onNavigate('inventory', { searchTerm: entry.name })}
+                  className={`group p-2.5 rounded-xl border transition-all duration-300 cursor-pointer flex flex-col gap-1.5 ${activeIndex === index
+                    ? 'bg-white dark:bg-white/5 border-blue-500/30 shadow-md translate-x-1'
+                    : 'bg-transparent border-transparent hover:bg-slate-100 dark:hover:bg-white/5'
+                    }`}
                 >
-                  {stats.brandData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={`url(#grad${index % 5})`}
-                      className="hover:opacity-80 transition-opacity"
-                      cursor="pointer"
-                      onClick={() => {
-                        const brand = entry.name;
-                        // Find the brand object to get the ID if needed, but repository might expect name or just filter by name
-                        // Usually inventory filter uses brand name or ID. Let's assume onNavigate can handle it.
-                        // For inventory by brand, we'd need to know if the view supports brand filter in viewParams.
-                        const brandObj = stats.brandData.find(b => b.name === entry.name);
-                        onNavigate('inventory', { searchTerm: entry.name });
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 shadow-sm`} style={{ backgroundColor: index === 0 ? '#3b82f6' : index === 1 ? '#8b5cf6' : index === 2 ? '#ec4899' : index === 3 ? '#f43f5e' : index === 4 ? '#f59e0b' : '#94a3b8' }}></div>
+                      <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight truncate">{entry.name}</span>
+                    </div>
+                    <span className="text-[10px] font-black text-slate-400 group-hover:text-blue-500 transition-colors uppercase">{entry.percentage}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-1000 ease-out"
+                      style={{
+                        width: `${entry.percentage}%`,
+                        backgroundColor: index === 0 ? '#3b82f6' : index === 1 ? '#8b5cf6' : index === 2 ? '#ec4899' : index === 3 ? '#f43f5e' : index === 4 ? '#f59e0b' : '#94a3b8',
+                        opacity: activeIndex === -1 ? 0.7 : activeIndex === index ? 1 : 0.4
                       }}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
-                    borderColor: 'rgba(51, 65, 85, 0.5)',
-                    color: '#f8fafc',
-                    fontSize: '11px',
-                    borderRadius: '12px',
-                    padding: '8px 12px',
-                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                    backdropFilter: 'blur(8px)'
-                  }}
-                  itemStyle={{ color: '#f8fafc', fontWeight: 600 }}
-                  formatter={(value: number, name: string, props: any) => {
-                    return [`${value} refs (${props.payload.percentage}%)`, 'Productos'];
-                  }}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  iconType="circle"
-                  iconSize={8}
-                  formatter={(value) => <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight ml-1">{value}</span>}
-                  wrapperStyle={{ paddingBottom: '10px' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </GlassCard>
       </div>
