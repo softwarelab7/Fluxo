@@ -651,6 +651,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
       producto_id: product.id,
       cantidad_pedida: 1, // Default 1
       cantidad_recibida: 0,
+      unidad: 'Unidad',
       estado_item: 'No llegó',
       producto: product
     };
@@ -1251,7 +1252,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
                   {/* Expected */}
                   <div className="text-center opacity-70">
-                    <p className="text-[9px] uppercase font-black tracking-widest mb-1 text-slate-500">Esperado</p>
+                    <p className="text-[9px] uppercase font-black tracking-widest mb-1 text-slate-500">Esperado ({item.unidad === 'Paquete' ? 'PAQ' : 'UNID'})</p>
                     {isEditingOrder ? (
                       <input
                         type="number"
@@ -1269,7 +1270,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
                   {/* Received Input */}
                   <div className="text-center">
-                    <p className={`text-[9px] uppercase font-black tracking-widest mb-1 ${isPerfect ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>Recibido</p>
+                    <p className={`text-[9px] uppercase font-black tracking-widest mb-1 ${isPerfect ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>Recibido ({item.unidad === 'Paquete' ? 'PAQ' : 'UNID'})</p>
                     <div className="flex items-center bg-white dark:bg-[#0f172a] rounded-xl p-1 border border-slate-200 dark:border-[#334155] shadow-sm">
                       {(activePedido.estado !== 'Auditado' || isEditingHistory) && (
                         <button
