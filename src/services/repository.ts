@@ -121,7 +121,7 @@ export const repository = {
     async addProducto(producto: Omit<Producto, 'id'>) {
         const { data, error } = await supabase
             .from('productos')
-            .insert([producto])
+            .insert([producto]) // RLS automatically sets user_id via DEFAULT auth.uid()
             .select()
             .single();
         if (error) throw error;
@@ -197,13 +197,16 @@ export const repository = {
                 *,
                 proveedor:proveedores(*),
                 items:pedido_items(
+                    *,
                     producto:productos!producto_id(
                     marca:marcas(*),
+                    categoria:categorias(*),
                     proveedor:proveedores(*)
                 ),
                 producto_real:productos!producto_real_id(
                     *,
                     marca:marcas(*),
+                    categoria:categorias(*),
                     proveedor:proveedores(*)
                 )
             )
@@ -221,11 +224,13 @@ export const repository = {
                 producto:productos!producto_id(
                     *,
                     marca:marcas(*),
+                    categoria:categorias(*),
                     proveedor:proveedores(*)
                 ),
                 producto_real:productos!producto_real_id(
                     *,
                     marca:marcas(*),
+                    categoria:categorias(*),
                     proveedor:proveedores(*)
                 )
             `)

@@ -251,12 +251,12 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     const currentAudit = auditedValues[itemId];
     const qty = field === 'qty' ? val : (currentAudit?.qty || 0);
 
-    let status: EstadoItem = explicitStatus || 'Completo';
+    let status: EstadoItem = explicitStatus || (qty === requested ? 'Completo' : 'Incompleto');
 
     if (!explicitStatus) {
       if (qty === 0) status = 'No llegó';
-      else if (qty < requested) status = 'Incompleto';
-      else if (qty > requested) status = 'Completo'; // over-delivery
+      else if (qty === requested) status = 'Completo';
+      else status = 'Incompleto'; // Se usa Incompleto para cualquier diferencia (menos o más) que requiera revisión
     }
 
     setAuditedValues(prev => ({
@@ -479,13 +479,13 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     // Check for discrepancies
     const discrepancies = items.filter(item => {
       const audit = auditedValues[item.id];
-      return audit.status === 'Incompleto' || audit.status === 'No llegó';
+      return audit.qty !== item.cantidad_pedida || audit.status === 'Agotado';
     });
 
     if (discrepancies.length > 0) {
       openConfirmModal(
         '⚠ Confirmar Discrepancias',
-        `Hay ${discrepancies.length} ítem(s) marcados como Incompletos o que No Llegaron. ¿Estás seguro de finalizar la auditoría así?`,
+        `Hay ${discrepancies.length} ítem(s) con discrepancias (faltas o excedentes). ¿Estás seguro de finalizar la auditoría así?`,
         processFinalization
       );
     } else {
@@ -609,7 +609,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
       updatedItems.forEach(item => {
         const qty = 0;
         const prev = auditedValues[item.id]?.qty || 0;
-        const status = prev === 0 ? 'No llegó' : (prev < item.cantidad_pedida ? 'Incompleto' : 'Completo');
+        const status = prev === 0 ? 'No llegó' : (prev === item.cantidad_pedida ? 'Completo' : 'Incompleto');
         newAudit[item.id] = { qty: prev, status };
       });
       setAuditedValues(newAudit);
@@ -651,6 +651,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
       producto_id: product.id,
       cantidad_pedida: 1, // Default 1
       cantidad_recibida: 0,
+      unidad: 'Unidad',
       estado_item: 'No llegó',
       producto: product
     };
@@ -671,27 +672,61 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
     const total = items.length;
     if (total === 0) return { percent: 0, perfect: 0, hasDiscrepancies: false, missingCount: 0 };
 
-    let perfectCount = 0;
+    let progressWeight = 0;
     let missing = 0;
 
     items.forEach(item => {
       const audit = auditedValues[item.id];
       if (audit) {
-        if (audit.qty === item.cantidad_pedida) perfectCount++;
-        if (audit.status === 'Incompleto' || audit.status === 'No llegó') missing++;
+        const qty = Number(audit.qty) || 0;
+        const requested = Number(item.cantidad_pedida) || 0;
+
+        // Line progress: 1.0 if fully received or more, partial if less
+        const lineProgress = requested > 0
+          ? Math.min(qty / requested, 1)
+          : (qty > 0 ? 1 : 0);
+
+        progressWeight += lineProgress;
+
+        // Discrepancies: anything that doesn't match the order exactly or is out of stock
+        if (qty !== requested || audit.status === 'Agotado') {
+          missing++;
+        }
       }
     });
 
+    const calculatedPercent = Math.round((progressWeight / total) * 100);
+
     return {
-      percent: Math.round((perfectCount / total) * 100),
-      perfect: perfectCount,
+      percent: calculatedPercent,
+      perfect: items.filter(i => {
+        const a = auditedValues[i.id];
+        return a && Number(a.qty) === Number(i.cantidad_pedida) && a.status !== 'Agotado';
+      }).length,
       hasDiscrepancies: missing > 0,
       missingCount: missing
     };
   }, [items, auditedValues]);
 
 
+  const calculatePedidoProgress = (pedido: Pedido) => {
+    const pItems = pedido.items || [];
+    if (pItems.length === 0) return 0;
+
+    let weight = 0;
+    pItems.forEach(i => {
+      const req = Number(i.cantidad_pedida) || 0;
+      const rec = Number(i.cantidad_recibida) || 0;
+      weight += req > 0 ? Math.min(rec / req, 1) : (rec > 0 ? 1 : 0);
+    });
+
+    return Math.round((weight / pItems.length) * 100);
+  };
+
   const getDisplayBrand = (pedido: Pedido) => {
+    // Priority: User-defined title
+    if (pedido.titulo) return pedido.titulo;
+
     // If no items loaded (shouldn't happen with new fetch) or no brands
     if (!pedido.items || pedido.items.length === 0) return pedido.proveedor?.nombre || "Proveedor Desconocido";
 
@@ -833,10 +868,26 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                     </span>
                   </div>
 
-                  <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm">
-                    <PackageCheck size={16} className="mr-2 opacity-70" />
-                    <span>{p.total_items} referencias</span>
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-sm mb-2">
+                    <div className="flex items-center">
+                      <PackageCheck size={16} className="mr-2 opacity-70" />
+                      <span>{p.total_items} referencias</span>
+                    </div>
+                    {(p.estado === 'Auditado' || p.estado === 'En Camino') && (
+                      <span className="text-[10px] font-black text-blue-500 dark:text-blue-400">
+                        {calculatePedidoProgress(p)}%
+                      </span>
+                    )}
                   </div>
+
+                  {(p.estado === 'Auditado' || p.estado === 'En Camino') && (
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-black/20 rounded-full overflow-hidden mb-1">
+                      <div
+                        className="h-full bg-blue-500 transition-all duration-1000 ease-out"
+                        style={{ width: `${calculatePedidoProgress(p)}%` }}
+                      ></div>
+                    </div>
+                  )}
                 </div>
                 {p.estado === 'En Camino' && (
                   <div className="p-4">
@@ -984,7 +1035,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
               <div className="mb-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 flex items-center gap-2 text-rose-500 dark:text-rose-400">
                 <AlertCircle size={16} className="shrink-0" />
                 <span className="text-xs font-bold leading-tight">
-                  Atención: Se cerró con {missingCount} ítems faltantes.
+                  Atención: Se cerró con {missingCount} discrepancias encontradas.
                 </span>
               </div>
             )}
@@ -1178,13 +1229,23 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       {item.producto?.nombre}
                     </h5>
                     <div className="flex items-center space-x-2">
-                      <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#0f172a] text-[10px] font-mono text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#334155]">
+                      <span className="px-1.5 py-0.5 rounded-md bg-white dark:bg-[#0f172a] text-[10px] font-mono font-black text-slate-950 dark:text-white border border-slate-300 dark:border-[#334155] shadow-sm">
                         {item.producto?.sku}
                       </span>
+                      {item.producto?.categoria && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-[10px] font-bold text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/30">
+                          {item.producto.categoria.name}
+                        </span>
+                      )}
                       {item.producto_real && (
                         <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-500/20 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 flex items-center gap-1">
                           <Replace size={10} />
                           Real: {item.producto_real.marca?.nombre}
+                        </span>
+                      )}
+                      {item.es_nueva && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-[10px] font-black text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-sm">
+                          NUEVA
                         </span>
                       )}
                     </div>
@@ -1196,7 +1257,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
                   {/* Expected */}
                   <div className="text-center opacity-70">
-                    <p className="text-[9px] uppercase font-black tracking-widest mb-1 text-slate-500">Esperado</p>
+                    <p className="text-[9px] uppercase font-black tracking-widest mb-1 text-slate-500">Esperado ({item.unidad === 'Paquete' ? 'PAQ' : 'UNID'})</p>
                     {isEditingOrder ? (
                       <input
                         type="number"
@@ -1214,7 +1275,7 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
 
                   {/* Received Input */}
                   <div className="text-center">
-                    <p className={`text-[9px] uppercase font-black tracking-widest mb-1 ${isPerfect ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>Recibido</p>
+                    <p className={`text-[9px] uppercase font-black tracking-widest mb-1 ${isPerfect ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>Recibido ({item.unidad === 'Paquete' ? 'PAQ' : 'UNID'})</p>
                     <div className="flex items-center bg-white dark:bg-[#0f172a] rounded-xl p-1 border border-slate-200 dark:border-[#334155] shadow-sm">
                       {(activePedido.estado !== 'Auditado' || isEditingHistory) && (
                         <button
@@ -1489,8 +1550,14 @@ const Audit: React.FC<AuditProps> = ({ initialViewMode = 'PENDING' }) => {
                       <div>
                         <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{p.nombre}</p>
                         <div className="flex gap-2 mt-1">
-                          <span className="text-[10px] bg-slate-100 dark:bg-black/20 px-1.5 py-0.5 rounded text-slate-500 font-mono">{p.sku}</span>
+                          <span className="text-[10px] bg-white dark:bg-black/40 px-1.5 py-0.5 rounded text-slate-950 dark:text-white font-black font-mono border border-slate-200 dark:border-slate-800 shadow-sm">{p.sku}</span>
                           <span className="text-[10px] text-slate-400">{p.marca?.nombre}</span>
+                          {p.categoria && <span className="text-[10px] text-blue-500 font-bold">{p.categoria.name}</span>}
+                          {p.es_nueva && (
+                            <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200">
+                              NUEVA
+                            </span>
+                          )}
                         </div>
                       </div>
                       <button

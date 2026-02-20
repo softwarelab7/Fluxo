@@ -60,6 +60,8 @@ export interface PedidoItem {
   producto_real_id?: string;
   cantidad_pedida: number;
   cantidad_recibida: number;
+  unidad?: 'Unidad' | 'Paquete';
+  es_nueva?: boolean;
   estado_item: EstadoItem;
   observaciones?: string;
   auditado_at?: string;

@@ -74,6 +74,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     { id: 'marca', label: 'MARCA' },
     { id: 'categoria', label: 'CATEGORÍA' },
     { id: 'subcategoria', label: 'SUBCATEGORÍA' },
+    { id: 'unidad', label: 'UNIDAD' },
+    { id: 'es_nueva', label: 'NUEVA REF' },
     { id: 'cantidad', label: 'CANTIDAD' },
   ];
 
@@ -95,7 +97,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     );
   };
 
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<Record<string, { qty: number, unit: 'Unidad' | 'Paquete', isNew: boolean }>>({});
   const [showMobileCart, setShowMobileCart] = useState(false);
 
   // Preview State
@@ -133,7 +135,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       setCategories(cats);
       setProveedores(provs.map(p => ({ ...p, is_active: p.is_active ?? true })));
       setProducts(prods);
-      setPendingOrders(orders.filter(o => o.estado === 'Pendiente')); // Show only draftsafts
+      // Sort orders by date descending if possible, or just keep them
+      setPendingOrders(orders.filter(o => o.estado === 'Pendiente').sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime()));
 
       // Init default filters
       const activeProvs = provs.filter(p => p.is_active !== false);
@@ -159,9 +162,13 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
       }
 
       // Populate Cart
-      const newCart: Record<string, number> = {};
+      const newCart: Record<string, { qty: number, unit: 'Unidad' | 'Paquete', isNew: boolean }> = {};
       items.forEach(item => {
-        newCart[item.producto_id] = item.cantidad_pedida;
+        newCart[item.producto_id] = {
+          qty: item.cantidad_pedida,
+          unit: (item.unidad as 'Unidad' | 'Paquete') || 'Unidad',
+          isNew: item.es_nueva || false
+        };
       });
       setCart(newCart);
 
@@ -236,7 +243,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
   const addToCart = (productId: string) => {
     setCart(prev => ({
       ...prev,
-      [productId]: (prev[productId] || 0) + 1
+      [productId]: {
+        qty: (prev[productId]?.qty || 0) + 1,
+        unit: 'Unidad',
+        isNew: false
+      }
     }));
   };
 
@@ -248,7 +259,24 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
   const updateCartQty = (productId: string, qty: number) => {
     if (qty <= 0) return removeFromCart(productId);
-    setCart(prev => ({ ...prev, [productId]: qty }));
+    setCart(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], qty }
+    }));
+  };
+
+  const updateCartUnit = (productId: string, unit: 'Unidad' | 'Paquete') => {
+    setCart(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], unit }
+    }));
+  };
+
+  const updateCartIsNew = (productId: string, isNew: boolean) => {
+    setCart(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], isNew }
+    }));
   };
 
   const cancelEdit = () => {
@@ -298,10 +326,15 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
     return true;
   });
 
-  const cartItems = Object.entries(cart).map(([id, qty]) => ({
-    product: products.find(p => p.id === id)!,
-    qty: qty as number
-  }));
+  const cartItems = Object.entries(cart).map(([id, data]) => {
+    const itemData = data as { qty: number, unit: 'Unidad' | 'Paquete', isNew: boolean };
+    return {
+      product: products.find(p => p.id === id)!,
+      qty: itemData.qty,
+      unit: itemData.unit,
+      isNew: itemData.isNew
+    };
+  });
 
   const activeContextName = useMemo(() => {
     const contextName = orderMode === 'PROVIDER'
@@ -345,8 +378,12 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           const existing = existingItemMap.get(item.product.id);
           if (existing) {
             // Logic to update ONLY if changed could be here, but simpler to just update qty
-            if (existing.cantidad_pedida !== item.qty) {
-              await repository.updatePedidoItem(existing.id, { cantidad_pedida: item.qty });
+            if (existing.cantidad_pedida !== item.qty || existing.unidad !== item.unit || existing.es_nueva !== item.isNew) {
+              await repository.updatePedidoItem(existing.id, {
+                cantidad_pedida: item.qty,
+                unidad: item.unit,
+                es_nueva: item.isNew
+              });
             }
           } else {
             // Insert New
@@ -355,6 +392,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
               producto_id: item.product.id,
               cantidad_pedida: item.qty,
               cantidad_recibida: 0,
+              unidad: item.unit,
+              es_nueva: item.isNew,
               estado_item: 'No llegó' as const
             });
           }
@@ -392,6 +431,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
           producto_id: item.product.id,
           cantidad_pedida: item.qty,
           cantidad_recibida: 0,
+          unidad: item.unit,
+          es_nueva: item.isNew,
           estado_item: 'No llegó' as const
         }));
 
@@ -488,6 +529,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
         if (selectedColumns.includes('marca')) rowData.push(item.producto?.marca?.nombre);
         if (selectedColumns.includes('categoria')) rowData.push(categoryName);
         if (selectedColumns.includes('subcategoria')) rowData.push(subCategoryName);
+        if (selectedColumns.includes('unidad')) rowData.push(item.unidad || 'Unidad');
+        if (selectedColumns.includes('es_nueva')) rowData.push(item.es_nueva ? 'SÍ' : 'NO');
         if (selectedColumns.includes('cantidad')) rowData.push(item.cantidad_pedida);
 
         return rowData;
@@ -785,6 +828,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                   <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-slate-500">Producto</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-slate-500">Tipo</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-slate-500">Unidad</th>
                       <th className="px-4 py-3 text-center text-xs font-bold text-slate-500">Cant.</th>
                     </tr>
                   </thead>
@@ -793,9 +838,19 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                       <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                         <td className="px-4 py-3">
                           <div className="font-bold text-slate-700 dark:text-slate-200">{item.producto?.nombre}</div>
-                          <div className="text-xs text-slate-400 font-mono mt-0.5">
-                            {item.producto?.sku} • {item.producto?.marca?.nombre}
+                          <div className="text-xs text-slate-950 dark:text-white font-black font-mono mt-0.5">
+                            {item.producto?.sku} <span className="text-slate-400 font-normal ml-1">• {item.producto?.marca?.nombre}</span>
                           </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {item.es_nueva && (
+                            <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200">
+                              NUEVA
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center text-[10px] font-black text-slate-400">
+                          {item.unidad?.toUpperCase() || 'UNIDAD'}
                         </td>
                         <td className="px-4 py-3 text-center font-bold text-slate-800 dark:text-white bg-slate-50/50 dark:bg-white/5">
                           {item.cantidad_pedida}
@@ -1120,11 +1175,11 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             {filtered.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 {filtered.map(product => {
-                  const inCart = cart[product.id] || 0;
+                  const inCartQty = cart[product.id]?.qty || 0;
                   const subCategoryName = categories.find(c => c.id === product.subcategoria_id)?.name;
 
                   return (
-                    <div key={product.id} className={`bg-white dark:bg-[#1e293b] rounded-2xl p-4 border transition-all duration-300 group shadow-sm hover:shadow-md flex flex-col h-full relative overflow-hidden hover:-translate-y-1 ${inCart > 0 ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500/50'}`}>
+                    <div key={product.id} className={`bg-white dark:bg-[#1e293b] rounded-2xl p-4 border transition-all duration-300 group shadow-sm hover:shadow-md flex flex-col h-full relative overflow-hidden hover:-translate-y-1 ${inCartQty > 0 ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500/50'}`}>
 
                       {/* Decorative Background Icon */}
                       <div className="absolute -right-4 -bottom-4 opacity-[0.03] dark:opacity-[0.05] group-hover:scale-125 transition-transform duration-500 pointer-events-none">
@@ -1150,8 +1205,8 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
                       {/* Top Tags */}
                       <div className="flex flex-wrap gap-2 mb-3 items-center">
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 capitalize">
-                          {product.marca?.nombre?.toLowerCase() || 'genérico'}
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                          {product.marca?.nombre || 'genérico'}
                         </span>
                         {product.subcategoria_id && (
                           <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-100 dark:border-violet-500/20 capitalize">
@@ -1166,7 +1221,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                           {product.nombre}
                         </h4>
                         <div className="flex items-center justify-between mt-2">
-                          <span className="text-[10px] text-slate-400 font-mono bg-slate-50 dark:bg-slate-900 px-1.5 rounded">
+                          <span className="text-[10px] text-slate-950 dark:text-white font-black font-mono bg-slate-50 dark:bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                             {product.sku}
                           </span>
 
@@ -1178,7 +1233,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
 
                       {/* Actions Footer */}
                       <div className="mt-auto border-t border-slate-100 dark:border-slate-800 pt-3 relative z-10">
-                        {inCart === 0 ? (
+                        {inCartQty === 0 ? (
                           <button
                             onClick={() => addToCart(product.id)}
                             className="w-full py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 shadow-sm"
@@ -1189,14 +1244,14 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                         ) : (
                           <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg p-0.5 border border-blue-200 dark:border-blue-800 w-full shadow-sm">
                             <button
-                              onClick={() => updateCartQty(product.id, inCart - 1)}
+                              onClick={() => updateCartQty(product.id, inCartQty - 1)}
                               className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-all"
                             >
                               <Minus size={14} />
                             </button>
-                            <span className="font-black text-blue-600 dark:text-blue-400 text-sm">{inCart}</span>
+                            <span className="font-black text-blue-600 dark:text-blue-400 text-sm">{inCartQty}</span>
                             <button
-                              onClick={() => updateCartQty(product.id, inCart + 1)}
+                              onClick={() => updateCartQty(product.id, inCartQty + 1)}
                               className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-all"
                             >
                               <Plus size={14} />
@@ -1261,7 +1316,7 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 min-h-0">
-              {cartItems.map(({ product, qty }) => {
+              {cartItems.map(({ product, qty, unit, isNew }) => {
                 const subCategoryName = categories.find(c => c.id === product.subcategoria_id)?.name;
                 return (
                   <div key={product.id} className="group flex flex-col bg-white dark:bg-[#0f172a] p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
@@ -1277,16 +1332,50 @@ const Orders: React.FC<OrdersProps> = ({ initialViewMode = 'CREATE' }) => {
                     <div className="pr-6 mb-2">
                       <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate leading-snug">{product.nombre}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-[10px] text-slate-400 font-mono">{product.sku}</p>
+                        <p className="text-[10px] text-slate-950 dark:text-white font-black font-mono">{product.sku}</p>
                         {subCategoryName && (
                           <p className="text-[9px] font-bold text-violet-500 dark:text-violet-400 uppercase truncate max-w-[100px]">{subCategoryName}</p>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{product.marca?.nombre}</span>
-                      <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center justify-between mt-2 gap-4">
+                      {/* Unit & New Selector */}
+                      <div className="flex flex-col gap-2">
+                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+                          <button
+                            onClick={() => updateCartUnit(product.id, 'Unidad')}
+                            className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${unit === 'Unidad'
+                              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                              }`}
+                          >
+                            UNIDAD
+                          </button>
+                          <button
+                            onClick={() => updateCartUnit(product.id, 'Paquete')}
+                            className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${unit === 'Paquete'
+                              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                              }`}
+                          >
+                            PAQUETE
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => updateCartIsNew(product.id, !isNew)}
+                          className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all ${isNew
+                            ? 'bg-amber-100 border-amber-200 text-amber-700 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-400'
+                            : 'bg-slate-50 border-slate-100 text-slate-400 dark:bg-slate-800 dark:border-slate-700'
+                            }`}
+                        >
+                          <div className={`w-2 h-2 rounded-full ${isNew ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                          <span className="text-[9px] font-bold uppercase tracking-tight">Referencia Nueva</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-100 dark:border-slate-700 h-fit">
                         <button
                           onClick={() => updateCartQty(product.id, qty - 1)}
                           className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 rounded-md transition-all font-bold text-lg leading-none pb-0.5"

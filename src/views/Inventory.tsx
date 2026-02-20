@@ -33,14 +33,10 @@ import * as XLSXReader from 'xlsx'; // For reading
 import { Producto, Marca, Categoria } from '../types';
 import { Skeleton } from '../components/Skeleton';
 
-interface InventoryProps {
-  initialFilters?: {
-    rotation?: 'alta' | 'media' | 'baja';
-    // stock?: 'critico'; // Removed as per user request
-  };
-}
+import { useSearchParams } from 'react-router-dom';
 
-const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
+const Inventory: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Producto[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
@@ -83,16 +79,32 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
   });
 
   useEffect(() => {
-    if (initialFilters) {
-      if (initialFilters.rotation === 'alta') {
-        setShowHighRotation(true);
-        setShowMediumRotation(false);
-      } else if (initialFilters.rotation === 'media') {
-        setShowMediumRotation(true);
-        setShowHighRotation(false);
-      }
+    const rotation = searchParams.get('rotation');
+    const search = searchParams.get('searchTerm');
+
+    if (rotation === 'alta') {
+      setShowHighRotation(true);
+      setShowMediumRotation(false);
+    } else if (rotation === 'media') {
+      setShowMediumRotation(true);
+      setShowHighRotation(false);
+    } else if (rotation === 'baja') {
+      setShowHighRotation(false);
+      setShowMediumRotation(false);
+      // Maybe add state for low rotation if needed, but currently logic implies if neither, then low is not filtered out unless filtered specifically?
+      // Actually the logic in filtered says:
+      // if (showHighRotation && p.rotacion !== 'alta') matchesRotation = false;
+      // So strict filtering.
+    } else {
+      // Reset if no param? Or keep persistence? Resetting usually better on fresh nav
+      setShowHighRotation(false);
+      setShowMediumRotation(false);
     }
-  }, [initialFilters]);
+
+    if (search) {
+      setSearchTerm(search);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadData();
@@ -350,13 +362,10 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
       const data = await file.arrayBuffer();
       const workbook = XLSXReader.read(data);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSXReader.utils.sheet_to_json(sheet) as any[];
-
-      addLog(`Archivo leído correctamente. ${jsonData.length} filas encontradas.`);
-      addLog("Iniciando procesamiento...");
 
       // Helper for normalization (Case insensitive, accent insensitive, trimmed)
       const normalizeStr = (str: string) => {
+        if (!str) return "";
         return str
           .toString()
           .trim()
@@ -364,6 +373,40 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "");
       };
+
+      // Get all rows as arrays to find the header
+      const allRows = XLSXReader.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+      let headerRowIndex = -1;
+      const possibleHeaders = ['referencia', 'sku', 'producto', 'marca', 'categoria', 'proveedor'];
+
+      // Search in the first 20 rows for a header
+      for (let i = 0; i < Math.min(allRows.length, 20); i++) {
+        const row = allRows[i];
+        if (row && Array.isArray(row)) {
+          const matchCount = row.filter(cell => {
+            const val = normalizeStr(String(cell || ''));
+            return possibleHeaders.some(ph => val.includes(ph));
+          }).length;
+
+          if (matchCount >= 2) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (headerRowIndex === -1) {
+        addLog("ADVERTENCIA: No se encontró una fila de cabecera clara. Usando fila 1.");
+        headerRowIndex = 0;
+      } else {
+        addLog(`Cabeceras detectadas en la fila ${headerRowIndex + 1}.`);
+      }
+
+      const jsonData = XLSXReader.utils.sheet_to_json(sheet, { range: headerRowIndex }) as any[];
+
+      addLog(`Archivo leído: ${jsonData.length} filas de datos.`);
+      addLog("Procesando...");
 
       // 1. Refresh Cache to ensure we don't duplicate
       const [currentMarcas, currentCats, currentProds, currentProvs] = await Promise.all([
@@ -373,28 +416,37 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
         repository.getProveedores()
       ]);
 
-      // Maps for quick lookup using normalized keys
+      // Maps for quick lookup
       const marcaMap = new Map(currentMarcas.map(m => [normalizeStr(m.nombre), m.id]));
       const catMap = new Map(currentCats.map(c => [normalizeStr(c.name), c]));
-      const skuMap = new Map(currentProds.map(p => [normalizeStr(p.sku), p.id]));
+      const skuMap = new Map(currentProds.map(p => {
+        const key = `${normalizeStr(p.sku)}|${p.marca_id}|${p.subcategoria_id || ''}`;
+        return [key, p.id];
+      }));
       const provMap = new Map(currentProvs.map(p => [normalizeStr(p.nombre), p.id]));
 
       let createdCount = 0;
       let updatedCount = 0;
 
-      for (const [index, row] of jsonData.entries()) {
-        const rowNum = index + 2; // Header is 1
+      for (const [index, rawRow] of jsonData.entries()) {
+        const rowNum = index + headerRowIndex + 2;
 
-        const sku = (row['REFERENCIA'] || row['referencia'] || row['SKU'])?.toString().trim();
-        const nombre = (row['PRODUCTO'] || row['producto'] || row['NOMBRE'])?.toString().trim();
-        const marcaName = (row['MARCA'] || row['marca'])?.toString().trim();
-        const catName = (row['CATEGORÍA'] || row['categoría'] || row['CATEGORIA'])?.toString().trim();
-        const subCatName = (row['SUBCATEGORÍA'] || row['subcategoría'] || row['SUBCATEGORIA'])?.toString().trim();
-        const provName = (row['PROVEEDOR'] || row['proveedor'] || row['PROVIDER'])?.toString().trim();
-        const rotacionRaw = (row['ROTACIÓN'] || row['rotación'] || row['ROTACION'])?.toString().trim().toLowerCase();
+        // Normalize keys of the row object to handle any case variation
+        const row: any = {};
+        Object.keys(rawRow).forEach(key => {
+          row[normalizeStr(key)] = rawRow[key];
+        });
+
+        const sku = (row['referencia'] || row['sku'])?.toString().trim();
+        const nombre = (row['producto'] || row['nombre'])?.toString().trim();
+        const marcaName = row['marca']?.toString().trim();
+        const catName = (row['categoria'] || row['categoria'])?.toString().trim();
+        const subCatName = (row['subcategoria'] || row['subcategoria'])?.toString().trim();
+        const provName = (row['proveedor'] || row['provider'])?.toString().trim();
+        const rotacionRaw = row['rotacion']?.toString().trim().toLowerCase();
 
         if (!sku || !nombre) {
-          addLog(`Fila ${rowNum}: Saltada por falta de SKU o Nombre.`);
+          addLog(`Fila ${rowNum}: Saltada (Falta SKU o Nombre).`);
           continue;
         }
 
@@ -493,16 +545,19 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
           stock_minimo: 5
         };
 
-        const skuKey = normalizeStr(sku);
-        if (skuMap.has(skuKey)) {
-          const id = skuMap.get(skuKey)!;
+        const compositeKey = `${normalizeStr(sku)}|${marcaId}|${subcategoriaId || ''}`;
+        if (skuMap.has(compositeKey)) {
+          const id = skuMap.get(compositeKey)!;
           await repository.updateProducto(id, productPayload);
           updatedCount++;
           addLog(`Actualizado: ${sku}`);
         } else {
-          await repository.addProducto(productPayload);
-          createdCount++;
-          addLog(`Creado: ${sku}`);
+          const newProduct = await repository.addProducto(productPayload);
+          if (newProduct) {
+            createdCount++;
+            skuMap.set(compositeKey, newProduct.id); // ACTUALIZACIÓN EN TIEMPO REAL
+            addLog(`Creado: ${sku}`);
+          }
         }
       }
 
@@ -533,9 +588,17 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
       await repository.deleteProducto(deleteConfirmation);
       await loadData();
       addToast("Producto eliminado correctamente", "success");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      addToast("Error al eliminar producto", "error");
+      const isForeignKeyError = error?.code === '23503' ||
+        error?.message?.toLowerCase().includes('foreign key') ||
+        error?.message?.toLowerCase().includes('violates foreign key constraint');
+
+      if (isForeignKeyError) {
+        addToast("No se puede eliminar: este producto tiene pedidos o historial asociado. Prueba cambiándolo a rotación 'Baja'.", "error");
+      } else {
+        addToast("Error al eliminar producto", "error");
+      }
     } finally {
       setDeleteConfirmation(null);
     }
@@ -632,37 +695,38 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
 
   // Enhanced Filtering Logic
   const filtered = products.filter(p => {
-    const matchesSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    // 1. Search filter
+    const matchesSearch = searchTerm.trim() === '' ||
+      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // If searching, ignore context
-    if (searchTerm.trim() !== '') {
-      return matchesSearch;
-    }
+    if (!matchesSearch) return false;
 
-    // High Rotation Filter (Global)
-    if (showHighRotation) {
-      if (p.rotacion !== 'alta') return false;
-      return true;
-    }
+    // If searching, we might want to bypass other filters, 
+    // but the user's request suggests they want filters to be combined.
+    // However, usually search is global. Let's keep search as priority if not empty.
+    if (searchTerm.trim() !== '') return true;
 
-    // Medium Rotation Filter (Global)
-    if (showMediumRotation) {
-      if (p.rotacion !== 'media') return false;
-      return true;
-    }
+    // 2. Rotation filter
+    let matchesRotation = true;
+    if (showHighRotation && p.rotacion !== 'alta') matchesRotation = false;
+    if (showMediumRotation && p.rotacion !== 'media') matchesRotation = false;
 
-    let matchesContext = false;
+    if (!matchesRotation) return false;
+
+    // 3. Context filter (Provider or Category)
+    let matchesContext = true;
     if (orderMode === 'PROVIDER') {
-      if (!selectedProvFilter) return true; // Show all if no provider selected? Or none? Let's show all or prompt
-      matchesContext = p.preferred_supplier_id === selectedProvFilter;
+      if (selectedProvFilter) {
+        matchesContext = p.preferred_supplier_id === selectedProvFilter;
+      }
     } else {
-      if (!selectedCategory) return true; // Show all if no category
-      const productCat = categorias.find(c => c.id === p.subcategoria_id);
-      // Logic: Match exactly, OR match if parent is selected
-      matchesContext = p.subcategoria_id === selectedCategory ||
-        p.categoria_id === selectedCategory || // Fallback if regular cat
-        productCat?.parent_id === selectedCategory;
+      if (selectedCategory) {
+        const productCat = categorias.find(c => c.id === p.subcategoria_id);
+        matchesContext = p.subcategoria_id === selectedCategory ||
+          p.categoria_id === selectedCategory ||
+          productCat?.parent_id === selectedCategory;
+      }
     }
 
     return matchesContext;
@@ -954,8 +1018,8 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
 
                     {/* Top Tags */}
                     <div className="flex flex-wrap gap-2 mb-3 items-center">
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 capitalize">
-                        {p.marca?.nombre?.toLowerCase() || 'genérico'}
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                        {p.marca?.nombre || 'genérico'}
                       </span>
                       {p.subcategoria_id && (
                         <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-100 dark:border-violet-500/20 capitalize">
@@ -970,7 +1034,7 @@ const Inventory: React.FC<InventoryProps> = ({ initialFilters }) => {
                         {p.nombre}
                       </h4>
                       <div className="flex items-center justify-between mt-2">
-                        <span className="text-[10px] text-slate-400 font-mono bg-slate-50 dark:bg-slate-900 px-1.5 rounded">
+                        <span className="text-[10px] text-slate-950 dark:text-white font-black font-mono bg-slate-50 dark:bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                           {p.sku}
                         </span>
 
