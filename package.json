@@ -1,0 +1,40 @@
+{
+  "name": "fluxo",
+  "private": true,
+  "version": "0.0.0",
+  "homepage": "https://softwarelab7.github.io/Fluxo/",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.91.0",
+    "@tanstack/react-query": "^5.90.21",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-hook-form": "^7.71.1",
+    "react-router-dom": "^7.13.0",
+    "recharts": "^3.7.0",
+    "tailwind-merge": "^3.5.0",
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.23",
+    "gh-pages": "^6.3.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
