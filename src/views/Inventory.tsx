@@ -1098,6 +1098,23 @@ const Inventory: React.FC = () => {
                       <Package size={100} />
                     </div>
 
+                    {/* Rotation Badge only if High or Low */}
+                    {p.rotacion === 'alta' && (
+                      <div className="absolute top-0 right-0">
+                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-rose-500 border-r-rose-500 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Alta Rotación"></div>
+                      </div>
+                    )}
+                    {p.rotacion === 'media' && (
+                      <div className="absolute top-0 right-0">
+                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-amber-400 border-r-amber-400 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Media Rotación"></div>
+                      </div>
+                    )}
+                    {p.rotacion === 'baja' && (
+                      <div className="absolute top-0 right-0">
+                        <div className="w-0 h-0 border-t-[12px] border-r-[12px] border-l-[12px] border-b-[12px] border-t-slate-300 border-r-slate-300 border-l-transparent border-b-transparent rounded-bl-sm shadow-sm" title="Baja Rotación"></div>
+                      </div>
+                    )}
+
                     {/* Top Tags */}
                     <div className="flex flex-wrap gap-2 mb-3 items-center">
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
@@ -1112,7 +1129,7 @@ const Inventory: React.FC = () => {
 
                     {/* Content */}
                     <div className="flex-1 mb-4">
-                      <h4 className="font-bold text-base text-slate-800 dark:text-slate-100 leading-snug mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      <h4 className="font-bold text-base text-slate-800 dark:text-slate-100 leading-snug mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2" title={p.nombre}>
                         {p.nombre}
                       </h4>
                       <div className="flex items-center justify-between mt-2">
@@ -1277,7 +1294,7 @@ const Inventory: React.FC = () => {
                       <div className="col-span-6 md:col-span-4">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Rotación</label>
                         <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800 h-11">
-                          {(['alta', 'media', 'baja'] as const).map((r) => (
+                          {(['baja', 'media', 'alta'] as const).map((r) => (
                             <button
                               key={r}
                               type="button"

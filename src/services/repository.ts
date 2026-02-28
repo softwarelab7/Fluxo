@@ -300,7 +300,7 @@ export const repository = {
             .from('pedido_items')
             .select(`
                 estado_item,
-                pedido:pedidos!pedido_id(
+                pedido:pedidos!inner(
                     estado,
                     fecha_recepcion
                 )
@@ -330,7 +330,7 @@ export const repository = {
             .from('pedido_items')
             .select(`
                 *,
-                pedido:pedidos!pedido_id(
+                pedido:pedidos!inner(
                     *,
                     proveedor:proveedores(*)
                 ),
@@ -341,17 +341,23 @@ export const repository = {
             `)
             .in('estado_item', ['No llegó', 'Incompleto'])
             .eq('pedido.estado', 'Auditado')
-            .gte('pedido.fecha_recepcion', dateStr)
-            .order('created_at', { foreignTable: 'pedidos', ascending: false });
+            .gte('pedido.fecha_recepcion', dateStr);
 
         if (error) throw error;
 
         // Supabase might return items for all orders if the inner filter isn't perfect
         // filtering manually to be safe if join filters are tricky
-        return (data as any[]).filter(item =>
+        const items = (data as any[]).filter(item =>
             item.pedido?.estado === 'Auditado' &&
             item.pedido?.fecha_recepcion >= dateStr
         ).map(item => ({ item, pedido: item.pedido }));
+
+        // Sort descending by fecha_recepcion
+        return items.sort((a, b) => {
+            const dateA = new Date(a.pedido?.fecha_recepcion || 0).getTime();
+            const dateB = new Date(b.pedido?.fecha_recepcion || 0).getTime();
+            return dateB - dateA;
+        });
     },
 
     async getSupplierPerformanceStats() {
